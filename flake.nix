@@ -63,6 +63,14 @@
             base/tests/fixtures/vertical_text/simple_ja_noruby.epub "$@"
         '';
 
+        linuxRuntimeLibraries = pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+          pkgs.libGL
+          pkgs.libusb1
+        ];
+        linuxLibraryPathHook = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
+          export LD_LIBRARY_PATH="${pkgs.sdl3}/lib:${pkgs.libGL}/lib:${pkgs.libusb1}/lib:$LD_LIBRARY_PATH"
+        '';
+
       in
       {
         devShells.default = pkgs.mkShell {
@@ -70,7 +78,8 @@
             gcc gnumake cmake ninja meson pkg-config autoconf automake libtool nasm
             git gnupatch wget unzip p7zip gettext
             python3 perl
-            sdl3 libGL libusb1
+            sdl3
+          ] ++ linuxRuntimeLibraries ++ [
             imagemagick
             luajit luarocks
             luajitPackages.busted
@@ -102,7 +111,7 @@
           ];
 
           shellHook = ''
-            export LD_LIBRARY_PATH="${pkgs.sdl3}/lib:${pkgs.libGL}/lib:${pkgs.libusb1}/lib:$LD_LIBRARY_PATH"
+            ${linuxLibraryPathHook}
 
             echo "KOReader dev shell ready."
             echo "  koreader-build          — build emulator (make -C base)"
@@ -121,7 +130,8 @@
           packages = with pkgs; [
             gcc gnumake cmake ninja meson pkg-config autoconf automake libtool nasm
             git gnupatch wget unzip gettext python3 perl
-            sdl3 libGL libusb1 imagemagick
+            sdl3 imagemagick
+          ] ++ linuxRuntimeLibraries ++ [
             luajit luarocks ccache zip shellcheck shfmt
           ];
 
@@ -132,7 +142,7 @@
               ) luarocksPackages;
             in
             ''
-              export LD_LIBRARY_PATH="${pkgs.sdl3}/lib:${pkgs.libGL}/lib:${pkgs.libusb1}/lib:$LD_LIBRARY_PATH"
+              ${linuxLibraryPathHook}
 
               BUILDDIR="$(ls -d base/build/*-debug 2>/dev/null | head -1)"
               if [ -z "$BUILDDIR" ]; then

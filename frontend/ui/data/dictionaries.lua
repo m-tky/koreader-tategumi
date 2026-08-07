@@ -2916,6 +2916,14 @@ local dictionaries = {
         url = "https://www.reader-dict.com/file/eo/dict-eo-eo.zip"
     },
     {
+        name = "reader.dict Polish",
+        lang_in = "pol",
+        lang_out = "pol",
+        entries = 889051,
+        license = "MIT https://github.com/reader-dict/monolingual",
+        url = "https://www.reader-dict.com/file/pl/dict-pl-pl.zip"
+    },
+    {
         name = "reader.dict Spanish",
         lang_in = "spa",
         lang_out = "spa",
@@ -2938,6 +2946,14 @@ local dictionaries = {
         entries = 294449,
         license = "MIT https://github.com/reader-dict/monolingual",
         url = "https://www.reader-dict.com/file/it/dict-it-it.zip"
+    },
+    {
+        name = "reader.dict Lojban",
+        lang_in = "jbo",
+        lang_out = "jbo",
+        entries = 1712,
+        license = "MIT https://github.com/reader-dict/monolingual",
+        url = "https://www.reader-dict.com/file/jbo/dict-jbo-jbo.zip"
     },
     {
         name = "reader.dict Japanese",

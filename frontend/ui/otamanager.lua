@@ -65,6 +65,10 @@ function OTAManager:setOTAChannel(channel)
     G_reader_settings:saveSetting("ota_channel", channel)
 end
 
+function OTAManager:getOTAUnpackDir()
+    return select(3, Device:otaModel()) or ".."
+end
+
 function OTAManager:getFilename(kind)
     if type(kind) ~= "string" then return end
     local model = Device:otaModel()
@@ -90,9 +94,9 @@ function OTAManager:checkUpdate()
 
     logger.dbg("downloading update file", ota_update_file)
 
-    local ota_type = OTAManager:getOTAType()
+    local ota_type = self:getOTAType()
     if ota_type == "kotasync" then
-        self.updater = require("ffi/updater"):new(ota_update_file, ota_dir, "..", "ffi/kotasync")
+        self.updater = require("ffi/updater"):new(ota_update_file, ota_dir, self:getOTAUnpackDir(), "ffi/kotasync")
         local ok, err = pcall(self.updater.fetch_manifest, self.updater)
         if not ok then
             return nil, err

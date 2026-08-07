@@ -25,6 +25,7 @@ local app_name = "koreader.app"
 local PocketBook = Generic:extend{
     model = "PocketBook",
     ota_model = "pocketbook",
+    ota_unpack_dir = "../..",
     isPocketBook = yes,
     hasOTAUpdates = yes,
     hasWifiToggle = yes,
@@ -901,6 +902,13 @@ local PocketBook970 = PocketBook:extend{
     hasNaturalLight = yes,
 }
 
+-- PocketBook InkPad One (1030)
+local PocketBook1030 = PocketBook:extend{
+    model = "PB1030",
+    display_dpi = 226,
+    hasNaturalLight = yes,
+}
+
 -- PocketBook InkPad X (1040)
 local PocketBook1040 = PocketBook:extend{
     model = "PB1040",
@@ -997,6 +1005,8 @@ elseif codename == "840" or codename == "Reader InkPad" then
     return PocketBook840
 elseif codename == "970" then
     return PocketBook970
+elseif codename == "1030" then
+    return PocketBook1030
 elseif codename == "1040" then
     return PocketBook1040
 elseif codename == "Color Lux" then

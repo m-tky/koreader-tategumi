@@ -63,6 +63,25 @@ jobs:
         # different version strings and offers an update on every check.
         run: echo "nightly_version=v$(date -u +%Y.%m.%d)-${{ github.run_number }}" >> "$GITHUB_OUTPUT"
 
+  ffi-cdefs:
+    name: LuaJIT FFI declarations
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Load every platform C definition with LuaJIT
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y luajit
+          for platform in android_arm android_arm64 android_x64 android_x86 linux_arm linux_arm64 linux_x64 macos; do
+            cdef="base/ffi-cdecl/posix_h_${platform}.lua"
+            echo "Checking $cdef"
+            luajit "$cdef"
+          done
+
   kindle:
     name: Kindle
     needs: check-changes
@@ -226,6 +245,39 @@ jobs:
           path: |
             koreader-pocketbook-latest-nightly.zip
             koreader-pocketbook-latest-nightly.targz
+            koreader-*.tar.xz
+
+  pocketbookhf:
+    name: PocketBook (HF)
+    needs: check-changes
+    if: needs.check-changes.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: koreader/kopb:latest
+    env:
+      BASH_ENV: /home/ko/.bashrc
+      TARGET: pocketbookhf
+      RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch submodules
+        run: make fetchthirdparty
+      - name: Build
+        run: make TARGET=pocketbookhf
+      - name: Package
+        run: make TARGET=pocketbookhf update
+      - name: Rename for nightly
+        run: |
+          cp koreader-pocketbookhf-*.zip koreader-pocketbookhf-latest-nightly.zip || true
+          cp koreader-pocketbookhf-*.targz koreader-pocketbookhf-latest-nightly.targz || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pocketbookhf
+          path: |
+            koreader-pocketbookhf-latest-nightly.zip
+            koreader-pocketbookhf-latest-nightly.targz
             koreader-*.tar.xz
 
   cervantes:
@@ -410,7 +462,7 @@ jobs:
 
   publish:
     name: Publish Nightly
-    needs: [check-changes, kindle, kindlehf, kindlepw2, kobo, pocketbook, cervantes, remarkable, remarkable-aarch64, android-arm, android-arm64]
+    needs: [check-changes, ffi-cdefs, kindle, kindlehf, kindlepw2, kobo, pocketbook, pocketbookhf, cervantes, remarkable, remarkable-aarch64, android-arm, android-arm64]
     if: needs.check-changes.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     permissions:

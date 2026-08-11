@@ -25,6 +25,24 @@ env:
 
 jobs:
 
+  ffi-cdefs:
+    name: LuaJIT FFI declarations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          submodules: recursive
+      - name: Load every platform C definition with LuaJIT
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y luajit
+          for platform in android_arm android_arm64 android_x64 android_x86 linux_arm linux_arm64 linux_x64 macos; do
+            cdef="base/ffi-cdecl/posix_h_${platform}.lua"
+            echo "Checking $cdef"
+            luajit "$cdef"
+          done
+
   kindle:
     name: Kindle
     runs-on: ubuntu-latest
@@ -178,6 +196,37 @@ jobs:
           path: |
             koreader-pocketbook-latest-stable.zip
             koreader-pocketbook-latest-stable.targz
+            koreader-*.tar.xz
+
+  pocketbookhf:
+    name: PocketBook (HF)
+    runs-on: ubuntu-latest
+    container:
+      image: koreader/kopb:latest
+    env:
+      BASH_ENV: /home/ko/.bashrc
+      TARGET: pocketbookhf
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+      - name: Fetch submodules
+        run: make fetchthirdparty
+      - name: Build
+        run: make TARGET=pocketbookhf
+      - name: Package
+        run: make TARGET=pocketbookhf update
+      - name: Rename for release
+        run: |
+          cp koreader-pocketbookhf-*.zip koreader-pocketbookhf-latest-stable.zip || true
+          cp koreader-pocketbookhf-*.targz koreader-pocketbookhf-latest-stable.targz || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pocketbookhf
+          path: |
+            koreader-pocketbookhf-latest-stable.zip
+            koreader-pocketbookhf-latest-stable.targz
             koreader-*.tar.xz
 
   cervantes:
@@ -352,7 +401,7 @@ jobs:
 
   release:
     name: Create Release
-    needs: [kindle, kindlehf, kindlepw2, kobo, pocketbook, cervantes, remarkable, remarkable-aarch64, android-arm, android-arm64]
+    needs: [ffi-cdefs, kindle, kindlehf, kindlepw2, kobo, pocketbook, pocketbookhf, cervantes, remarkable, remarkable-aarch64, android-arm, android-arm64]
     runs-on: ubuntu-latest
     permissions:
       contents: write

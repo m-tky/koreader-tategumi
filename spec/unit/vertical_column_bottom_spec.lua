@@ -256,7 +256,7 @@ describe("Vertical column bottom", function()
         end)
     end)
 
-    it("renders ideographic full stops that land at a column end #column_bottom", function()
+    it("hangs a column-end ideographic full stop into the bottom margin #column_bottom", function()
         local path = "/tmp/koreader_vertical_period_column_end.xhtml"
         local f = assert(io.open(path, "wb"))
         f:write([[<?xml version="1.0" encoding="UTF-8"?>
@@ -282,6 +282,23 @@ span { color: #808080; }
         fastforward_ui_events()
         period_reader.typography:onToggleFloatingPunctuation(true)
         fastforward_ui_events()
+        local margins = assert(period_reader.document:getPageMargins())
+        local content_bottom = Screen:getHeight() - margins.bottom
+        local overflow_ink = 0
+        -- getWordFromPosition() intentionally excludes the page margin, so the
+        -- exactly aligned period cannot be counted semantically. Its authored
+        -- mid-gray lets us verify its ink directly in the first few margin rows,
+        -- above the reader footer.
+        local overflow_bottom = math.min(Screen:getHeight() - 1,
+            content_bottom + math.min(10, margins.bottom - 1))
+        for y = content_bottom, overflow_bottom do
+            for x = 3, Screen:getWidth() - 3 do
+                local px = Screen.bb:getPixel(x, y)
+                if px and px:getR() >= 80 and px:getR() <= 190 then
+                    overflow_ink = overflow_ink + 1
+                end
+            end
+        end
 
         local periods = {}
         local width, height = Screen:getWidth(), Screen:getHeight()
@@ -327,14 +344,16 @@ span { color: #808080; }
             end
         end
         print(string.format(
-            "[col_bottom period] found=%d/%d near_bottom=%d boxes=%s phantoms=%s",
-            found, expected_periods, near_bottom,
+            "[col_bottom period] in_content=%d/%d overflow_ink=%d near_bottom=%d boxes=%s phantoms=%s",
+            found, expected_periods, overflow_ink, near_bottom,
             table.concat(bottom_boxes, ","), table.concat(phantoms, ",")))
 
         period_reader:onClose()
         UIManager:quit()
-        assert.are.equal(expected_periods, found,
-            "an ideographic full stop disappeared at the exact column end")
+        assert.are.equal(expected_periods - 1, found,
+            "exactly one ideographic full stop should hang outside the content clip")
+        assert.is_true(overflow_ink >= 3,
+            "the hanging ideographic full stop has no ink in the bottom margin")
         assert.is_true(near_bottom > 0,
             "fixture did not place an ideographic full stop near a column end")
         assert.are.same({}, phantoms,

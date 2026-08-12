@@ -969,8 +969,8 @@ function CreDocument:getPageLinks(internal_links_only)
     return self._document:getPageLinks(internal_links_only)
 end
 
-function CreDocument:getLinkFromPosition(pos)
-    return self._document:getLinkFromPosition(pos.x, pos.y)
+function CreDocument:getLinkFromPosition(pos, with_forTextSelection)
+    return self._document:getLinkFromPosition(pos.x, pos.y, with_forTextSelection)
 end
 
 function CreDocument:isLinkToFootnote(source_xpointer, target_xpointer, flags, max_text_size)
@@ -1321,6 +1321,11 @@ end
 function CreDocument:setFontKerning(mode)
     logger.dbg("CreDocument: set font kerning mode", mode)
     self._document:setIntProperty("font.kerning.mode", mode)
+end
+
+function CreDocument:setFontFractionalPositioning(strength)
+    logger.dbg("CreDocument: set font fractionalbpositioning", strength)
+    self._document:setIntProperty("font.fractional.positioning", strength)
 end
 
 function CreDocument:setWordSpacing(values)

@@ -98,7 +98,7 @@
             # CI lint tools (crengine/.github/workflows/build.yml runs clang-tidy + cppcheck)
             clang-tools cppcheck
             # System libs needed for crengine lint to resolve includes via pkg-config
-            harfbuzz freetype fribidi libunibreak libutf8proc
+            harfbuzz freetype glib xxhash fribidi libunibreak libutf8proc
             # LuaTeX-ja reference renderer for vertical-rl visual comparison
             # (used during JFM development to verify output matches LuaTeX-ja).
             (texlive.combine {

@@ -255,4 +255,89 @@ describe("Vertical column bottom", function()
                     found_edge_word.sbox.y + found_edge_word.sbox.h, h))
         end)
     end)
+
+    it("renders ideographic full stops that land at a column end #column_bottom", function()
+        local path = "/tmp/koreader_vertical_period_column_end.xhtml"
+        local f = assert(io.open(path, "wb"))
+        f:write([[<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><style>
+html, body { margin: 0; padding: 0; }
+body { writing-mode: vertical-rl; font-size: 15px; line-height: 1; padding-top: 3px; }
+p { margin: 0; padding: 0; }
+span { color: #808080; }
+</style></head><body>]])
+        local expected_periods = 11
+        for count = 45, 55 do
+            f:write("<p>", string.rep("一", count),
+                "<span>。</span>二</p>")
+        end
+        f:write([[</body></html>]])
+        f:close()
+
+        local period_reader = ReaderUI:new{
+            dimen = Screen:getSize(),
+            document = DocumentRegistry:openDocument(path),
+        }
+        UIManager:show(period_reader)
+        fastforward_ui_events()
+        period_reader.typography:onToggleFloatingPunctuation(true)
+        fastforward_ui_events()
+
+        local periods = {}
+        local width, height = Screen:getWidth(), Screen:getHeight()
+        for x = width - 3, 3, -3 do
+            for y = 3, height - 3, 3 do
+                local word = get_word_at(period_reader.document, x, y)
+                if word and word.sbox and word.word:sub(-#"。") == "。" then
+                    local key = string.format("%d:%d:%d:%d", word.sbox.x,
+                        word.sbox.y, word.sbox.w, word.sbox.h)
+                    periods[key] = word.sbox
+                end
+            end
+        end
+
+        local function has_period_ink(box)
+            -- The semantic word box includes the preceding ideograph. The period is
+            -- the final half-em JFM slot, so inspect only that slot. Its
+            -- authored mid-gray also separates it from the black 十 even when
+            -- the emulator framebuffer itself is grayscale.
+            local slot = math.max(1, math.ceil(box.w / 2))
+            for y = box.y + box.h - slot, box.y + box.h - 1 do
+                for x = box.x, box.x + box.w - 1 do
+                    local px = Screen.bb:getPixel(x, y)
+                    if px and px:getR() >= 80 and px:getR() <= 190 then
+                        return true
+                    end
+                end
+            end
+            return false
+        end
+
+        local found, near_bottom, phantoms, bottom_boxes = 0, 0, {}, {}
+        for _, box in pairs(periods) do
+            found = found + 1
+            if box.y + box.h >= height - 40 then
+                near_bottom = near_bottom + 1
+                table.insert(bottom_boxes, string.format("{%d,%d,%d,%d}",
+                    box.x, box.y, box.w, box.h))
+            end
+            if not has_period_ink(box) then
+                table.insert(phantoms, string.format("{%d,%d,%d,%d}",
+                    box.x, box.y, box.w, box.h))
+            end
+        end
+        print(string.format(
+            "[col_bottom period] found=%d/%d near_bottom=%d boxes=%s phantoms=%s",
+            found, expected_periods, near_bottom,
+            table.concat(bottom_boxes, ","), table.concat(phantoms, ",")))
+
+        period_reader:onClose()
+        UIManager:quit()
+        assert.are.equal(expected_periods, found,
+            "an ideographic full stop disappeared at the exact column end")
+        assert.is_true(near_bottom > 0,
+            "fixture did not place an ideographic full stop near a column end")
+        assert.are.same({}, phantoms,
+            "ideographic full stop had a selectable box but no painted glyph")
+    end)
 end)

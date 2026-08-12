@@ -202,7 +202,7 @@ jobs:
     name: PocketBook (HF)
     runs-on: ubuntu-latest
     container:
-      image: koreader/kopb:latest
+      image: koreader/kopb:2.1.0-22.04
     env:
       BASH_ENV: /home/ko/.bashrc
       TARGET: pocketbookhf

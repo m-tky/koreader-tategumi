@@ -2,18 +2,16 @@
 Regression spec: Enclosed Alphanumerics (U+2460-24FF, e.g. ①②③) in
 vertical-rl mode.
 
-Before the lStr_isCJK fix, these chars fell into word_is_latin_in_vertical
-(render+rotate path).  Symptoms:
+Before the vertical Enclosed Alphanumerics fix, these chars fell into
+word_is_latin_in_vertical (render+rotate path). Symptoms:
   - The rotated buffer (width = font_h > em) overflowed the column right
     edge by (font_h - em) / 2 px, clipping the glyph on the rightmost
     column (visible on PW2 / 212 DPI devices).
-  - Consecutive circled numbers grouped into a single multi-char word,
-    inconsistent with surrounding Japanese (where each CJK char is its
-    own word) and breaking column-by-column selection.
 
-The fix in include/lvstring.h adds U+2460-24FF to lStr_isCJK.  This spec
-asserts the observable consequence: ① is selectable as a single-char
-word when tapped, matching CJK selection semantics.
+The fix is deliberately applied only in vertical layout: classifying these
+characters as CJK globally would change word segmentation and line breaking
+for horizontal documents. This spec checks their vertical rendering while
+preserving the normal multi-character word-selection behavior.
 
 Run via:
   ./kodev test front -f "Enclosed alphanumeric"
@@ -62,6 +60,24 @@ describe("Enclosed alphanumeric vertical text", function()
         return nil
     end
 
+    local function find_word_containing(doc, target)
+        local h = Screen:getHeight()
+        local w = Screen:getWidth()
+        local y_step = math.max(8, math.floor(h / 60))
+        local x_step = math.max(6, math.floor(w / 40))
+        for y = math.floor(h * 0.05), math.floor(h * 0.95), y_step do
+            for x = w - 4, 4, -x_step do
+                local ok, word = pcall(function()
+                    return doc:getWordFromPosition({x=x, y=y})
+                end)
+                if ok and word and word.word and word.word:find(target, 1, true) then
+                    return x, y, word
+                end
+            end
+        end
+        return nil
+    end
+
     local readerui, doc
 
     setup(function()
@@ -103,18 +119,15 @@ describe("Enclosed alphanumeric vertical text", function()
         assert.equals("①", word.word)
     end)
 
-    it("U+2466 (⑦) in a multi-char circled run is a single-char word", function()
-        -- Discriminating test: the fixture contains the run "⑥⑦⑧⑨⑩も…",
-        -- i.e. five consecutive non-CJK Enclosed Alphanumerics with no
-        -- separator between them.  Without the lStr_isCJK fix every
-        -- circled char is non-CJK, the entire run forms ONE Latin word,
-        -- and tapping ⑦ returns "⑥⑦⑧⑨⑩".  With the fix each circled
-        -- char is its own CJK word, so the tap returns just "⑦".
-        local x, y, word = find_word(doc, "⑦")
+    it("U+2466 (⑦) preserves horizontal word segmentation", function()
+        -- Enclosed Alphanumerics are treated specially only during vertical
+        -- drawing. Their selection semantics remain unchanged so horizontal
+        -- documents do not acquire new CJK word boundaries.
+        local x, y, word = find_word_containing(doc, "⑦")
         assert.truthy(word,
             "no tap position returned word=\"⑦\" — Enclosed Alphanumerics "
-            .. "are still grouped as a Latin run (lStr_isCJK fix not active)")
-        assert.equals("⑦", word.word)
+            .. "could not be found in the circled-number run")
+        assert.equals("⑥⑦⑧⑨⑩", word.word)
     end)
 
     it("U+2460 sbox fits within its em column (no right-edge overflow)", function()

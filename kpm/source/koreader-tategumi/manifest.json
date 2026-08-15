@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+  "id": "koreader-tategumi",
+  "name": "KOReader Tategumi",
+  "author": "m-tky",
+  "description": "Install the latest stable KOReader Tategumi release (PW2 and newer).",
+  "version": [
+    1,
+    0,
+    0
+  ],
+  "dependencies": [],
+  "supported_platforms": [
+    "kindlehf",
+    "kindlepw2"
+  ]
+}

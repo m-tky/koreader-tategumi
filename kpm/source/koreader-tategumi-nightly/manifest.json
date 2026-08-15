@@ -1,0 +1,17 @@
+{
+  "manifest_version": 2,
+  "id": "koreader-tategumi-nightly",
+  "name": "KOReader Tategumi Nightly",
+  "author": "m-tky",
+  "description": "Install the latest nightly KOReader Tategumi build (PW2 and newer). This replaces the stable build.",
+  "version": [
+    1,
+    0,
+    0
+  ],
+  "dependencies": [],
+  "supported_platforms": [
+    "kindlehf",
+    "kindlepw2"
+  ]
+}

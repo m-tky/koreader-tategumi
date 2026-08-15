@@ -1,0 +1,34 @@
+{
+  "manifest_version": 2,
+  "id": "koreader-tategumi",
+  "name": "KOReader Tategumi",
+  "description": "KOReader Tategumi packages for Kindle",
+  "packages": {
+    "koreader-tategumi": {
+      "name": "KOReader Tategumi",
+      "author": "m-tky",
+      "description": "Install the latest stable KOReader Tategumi release (PW2 and newer).",
+      "artifacts": [
+        {
+          "url": "packages/koreader-tategumi/artifacts/koreader-tategumi_1.0.0_kindlehf-kindlepw2.kpkg",
+          "version": [1, 0, 0],
+          "dependencies": [],
+          "supported_platforms": ["kindlehf", "kindlepw2"]
+        }
+      ]
+    },
+    "koreader-tategumi-nightly": {
+      "name": "KOReader Tategumi Nightly",
+      "author": "m-tky",
+      "description": "Install the latest nightly KOReader Tategumi build (PW2 and newer). This replaces the stable build.",
+      "artifacts": [
+        {
+          "url": "packages/koreader-tategumi-nightly/artifacts/koreader-tategumi-nightly_1.0.0_kindlehf-kindlepw2.kpkg",
+          "version": [1, 0, 0],
+          "dependencies": [],
+          "supported_platforms": ["kindlehf", "kindlepw2"]
+        }
+      ]
+    }
+  }
+}

@@ -485,7 +485,7 @@ jobs:
           # Meson even though the resulting AppRun is only used for manifests.
           sudo apt-get update -qq && sudo apt-get install -y meson
           make -C base/kotasync appdir
-          echo "KOTASYNC=$(find "$PWD/base/build" -path '*/AppDir/AppRun' -type f -print -quit)" >> "$GITHUB_ENV"
+          echo "KOTASYNC=$(find "$PWD/base/kotasync/build" -path '*/AppDir/AppRun' -type f -print -quit)" >> "$GITHUB_ENV"
 
       - name: Generate kotasync files
         run: |

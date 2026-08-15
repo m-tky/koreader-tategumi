@@ -34,6 +34,16 @@ emu
 luacov.stats.out
 trace-out.txt
 koreader-*
+# KPM packages intentionally use the koreader-* package ID and are published as
+# static repository artifacts.
+!kpm/source/koreader-tategumi/
+!kpm/source/koreader-tategumi/**
+!kpm/source/koreader-tategumi-nightly/
+!kpm/source/koreader-tategumi-nightly/**
+!kpm/packages/koreader-tategumi/
+!kpm/packages/koreader-tategumi/**
+!kpm/packages/koreader-tategumi-nightly/
+!kpm/packages/koreader-tategumi-nightly/**
 
 i18n
 

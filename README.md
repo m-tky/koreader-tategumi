@@ -15,6 +15,11 @@ It is regularly synced with upstream KOReader (master / nightly).
 
 Download the build for your device from the
 [latest release](https://github.com/m-tky/koreader-tategumi/releases/latest).
+
+## Installation
+
+### Standard installation
+
 Installation steps are the same as upstream KOReader:
 [Android](https://github.com/koreader/koreader/wiki/Installation-on-Android-devices) •
 [Kindle](https://github.com/koreader/koreader/wiki/Installation-on-Kindle-devices) •
@@ -26,7 +31,56 @@ use Android's APK install flow instead; the APKs published by this fork's GitHub
 releases support the same in-app update check, download the next APK in-app, and
 then hand it to Android's installer.
 
-### Nightly builds
+### Kindle: install with KPM
+
+On a Kindle with the Kindle Package Manager (KPM), add this fork's repository once:
+
+```text
+;kpm add-repo https://raw.githubusercontent.com/m-tky/koreader-tategumi/master/kpm/manifest.json
+```
+
+Then install either channel:
+
+```text
+;kpm install koreader-tategumi
+;kpm install koreader-tategumi-nightly
+```
+
+The first command installs the latest numbered release; the second installs the
+latest nightly build. Both support Kindle PW2 and newer, including Kindle HF
+devices. They share the same KOReader installation directory, so installing one
+replaces the other while keeping your KOReader settings.
+
+Launch the selected package from the Kindle search bar:
+
+```text
+;kpm launch koreader-tategumi
+;kpm launch koreader-tategumi-nightly
+```
+
+Installation also adds a matching scriptlet to the Kindle library. If KUAL is
+installed, its existing KOReader menu entry remains available as well; KPM handles
+installation and updates, whereas KUAL is a launcher UI.
+
+### Switching from vanilla KOReader
+
+If you already have vanilla KOReader installed, you can switch to this fork without
+reinstalling from scratch:
+
+1. Copy `frontend/ui/otamanager.lua` from this repository into
+   `<koreader-dir>/frontend/ui/otamanager.lua` on your device.
+2. Restart KOReader and go to **Menu → Update → Check for update**.
+3. KOReader will download and apply this fork's build automatically.
+
+This shortcut only works for file-based installs that expose a writable
+`<koreader-dir>/frontend/` directory. Android APK installs, including Boox
+devices, cannot use this migration path because the application files are
+packaged inside the APK. If you installed KOReader from an APK, install this
+fork's Android APK from the release page instead. After that, this fork's GitHub
+APK builds can check for updates in-app, download the next APK, and hand it to
+Android's installer.
+
+## Nightly builds
 
 In addition to tagged releases, a **nightly** build is produced automatically from
 the latest `master` every day (around 05:00 JST) for all supported devices. Use it
@@ -121,24 +175,6 @@ Japanese/vertical-rl use:
   conversion with a bundled dictionary. It supports both physical keyboards and
   a touch virtual keyboard.
 
-## Switching from vanilla KOReader
-
-If you already have vanilla KOReader installed, you can switch to this fork without
-reinstalling from scratch:
-
-1. Copy `frontend/ui/otamanager.lua` from this repository into
-   `<koreader-dir>/frontend/ui/otamanager.lua` on your device.
-2. Restart KOReader and go to **Menu → Update → Check for update**.
-3. KOReader will download and apply this fork's build automatically.
-
-This shortcut only works for file-based installs that expose a writable
-`<koreader-dir>/frontend/` directory. Android APK installs, including Boox
-devices, cannot use this migration path because the application files are
-packaged inside the APK. If you installed KOReader from an APK, install this
-fork's Android APK from the release page instead. After that, this fork's GitHub
-APK builds can check for updates in-app, download the next APK, and hand it to
-Android's installer.
-
 ## Support
 
 If you find this vertical text fork useful, you can support its development:
@@ -177,7 +213,13 @@ upstream KOReader（master / nightly）と定期的に同期しています。
 
 ご利用の端末向けビルドを
 [最新リリース](https://github.com/m-tky/koreader-tategumi/releases/latest)
-からダウンロードしてください。インストール手順は upstream KOReader と同じです:
+からダウンロードしてください。
+
+## インストール
+
+### 通常のインストール
+
+インストール手順は upstream KOReader と同じです:
 [Android](https://github.com/koreader/koreader/wiki/Installation-on-Android-devices) •
 [Kindle](https://github.com/koreader/koreader/wiki/Installation-on-Kindle-devices) •
 [Kobo](https://github.com/koreader/koreader/wiki/Installation-on-Kobo-devices)
@@ -188,7 +230,56 @@ Android APK 版は Android の APK インストール機能を使います。本
 リリースで配布している APK では、同じアプリ内の更新確認から次の APK を検出・
 ダウンロードし、Android のインストーラに渡して更新できます。
 
-### Nightly ビルド
+### Kindle: KPM を使ったインストール
+
+Kindle Package Manager（KPM）が導入済みの Kindle では、最初に一度だけ本フォークの
+リポジトリを追加します:
+
+```text
+;kpm add-repo https://raw.githubusercontent.com/m-tky/koreader-tategumi/master/kpm/manifest.json
+```
+
+続いて、利用したいチャンネルをインストールします:
+
+```text
+;kpm install koreader-tategumi
+;kpm install koreader-tategumi-nightly
+```
+
+上は最新の番号付きリリース、下は最新の nightly ビルドを導入します。いずれも
+Kindle PW2以降（Kindle HF を含む）に対応します。両者は同じ KOReader の
+インストール先を使うため、一方を導入するともう一方を置き換えますが、KOReaderの
+設定は維持されます。
+
+選択したパッケージは Kindle の検索欄から起動できます:
+
+```text
+;kpm launch koreader-tategumi
+;kpm launch koreader-tategumi-nightly
+```
+
+インストール時には、対応する scriptlet も Kindle のライブラリへ追加されます。
+KUAL が導入済みなら、従来の KOReader メニューからも起動できます。KPM は
+インストール・更新を扱い、KUAL は起動用UIという役割分担です。
+
+### vanilla KOReader からの移行
+
+既に vanilla KOReader をインストール済みの場合、再インストールせずに
+本フォークへ切り替えられます:
+
+1. 本リポジトリの `frontend/ui/otamanager.lua` を端末上の
+   `<koreader-dir>/frontend/ui/otamanager.lua` にコピーします。
+2. KOReader を再起動し、**メニュー → 更新 → 更新を確認** へ進みます。
+3. KOReader が本フォークのビルドを自動的にダウンロード・適用します。
+
+この方法が使えるのは、端末上で書き込み可能な `<koreader-dir>/frontend/`
+ディレクトリが見えているファイル配置型のインストールだけです。Boox 端末を含む
+Android APK 版は、アプリ本体が APK 内にパッケージされるため、この移行方法は
+使えません。APK からインストールしている場合は、リリースページから本フォークの
+Android APK をインストールしてください。その後は、アプリ内で更新を確認し、
+次の APK をダウンロードして Android のインストーラで更新できます。
+
+## Nightly ビルド
 
 タグ付きリリースに加え、毎日（日本時間 5:00 頃）最新の `master` から **nightly**
 ビルドが全対応端末向けに自動生成されます。番号付きリリースに入る前の縦書き
@@ -278,23 +369,6 @@ KOReader nightly でも同様に再現するか併記いただけると振り分
   キーボードではひらがな・カタカナ入力までだったところを、同梱辞書を使った
   SKK 方式のかな漢字変換に対応させます。物理キーボードとタッチ用の仮想
   キーボードの両方で利用できます。
-
-## vanilla KOReader からの移行
-
-既に vanilla KOReader をインストール済みの場合、再インストールせずに
-本フォークへ切り替えられます:
-
-1. 本リポジトリの `frontend/ui/otamanager.lua` を端末上の
-   `<koreader-dir>/frontend/ui/otamanager.lua` にコピーします。
-2. KOReader を再起動し、**メニュー → 更新 → 更新を確認** へ進みます。
-3. KOReader が本フォークのビルドを自動的にダウンロード・適用します。
-
-この方法が使えるのは、端末上で書き込み可能な `<koreader-dir>/frontend/`
-ディレクトリが見えているファイル配置型のインストールだけです。Boox 端末を含む
-Android APK 版は、アプリ本体が APK 内にパッケージされるため、この移行方法は
-使えません。APK からインストールしている場合は、リリースページから本フォークの
-Android APK をインストールしてください。その後は、アプリ内で更新を確認し、
-次の APK をダウンロードして Android のインストーラで更新できます。
 
 ## サポート
 

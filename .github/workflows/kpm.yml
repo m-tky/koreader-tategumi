@@ -1,0 +1,21 @@
+name: KPM packages
+
+on:
+  push:
+    paths:
+      - 'kpm/**'
+      - '.github/workflows/kpm.yml'
+  pull_request:
+    paths:
+      - 'kpm/**'
+      - '.github/workflows/kpm.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build KPM artifacts
+        run: sh kpm/build-packages.sh
+      - name: Validate package sources and artifacts
+        run: sh kpm/test-packages.sh

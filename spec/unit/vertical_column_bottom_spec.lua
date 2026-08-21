@@ -27,7 +27,7 @@ Run via:
 --]]
 
 describe("Vertical column bottom", function()
-    local DocumentRegistry, ReaderUI, UIManager, Screen
+    local DocumentRegistry, DocSettings, ReaderUI, UIManager, Screen
     local epub_candidates = {
         "spec/front/unit/data/fixtures/vertical_text/sanshiro.epub",
         "spec/front/unit/data/fixtures/vertical_text/simple_ja_noruby.epub",
@@ -43,6 +43,7 @@ describe("Vertical column bottom", function()
         disable_plugins()
         require("document/canvascontext"):init(require("device"))
         DocumentRegistry = require("document/documentregistry")
+        DocSettings = require("docsettings")
         ReaderUI = require("apps/reader/readerui")
         Screen = require("device").screen
         UIManager = require("ui/uimanager")
@@ -90,26 +91,23 @@ describe("Vertical column bottom", function()
     describe("no missing char at column bottom #column_bottom", function()
         local readerui, doc
 
-        setup(function()
+        before_each(function()
             if not epub_path then return end
             readerui = ReaderUI:new{
                 dimen = Screen:getSize(),
                 document = DocumentRegistry:openDocument(epub_path),
             }
-        end)
-
-        teardown(function()
-            if readerui then readerui:onClose() end
-        end)
-
-        before_each(function()
-            if not readerui then return end
             UIManager:show(readerui)
             apply_vertical_css(readerui)
         end)
 
         after_each(function()
+            if readerui then
+                readerui:onClose()
+                readerui = nil
+            end
             UIManager:quit()
+            UIManager._exit_code = nil
         end)
 
         -- ----------------------------------------------------------------
@@ -256,107 +254,76 @@ describe("Vertical column bottom", function()
         end)
     end)
 
-    it("hangs a column-end ideographic full stop into the bottom margin #column_bottom", function()
-        local path = "/tmp/koreader_vertical_period_column_end.xhtml"
-        local f = assert(io.open(path, "wb"))
-        f:write([[<?xml version="1.0" encoding="UTF-8"?>
+    it("recovers an exact-boundary full stop in a partially clipped column #column_bottom", function()
+        local function write_fixture(path, padding_top)
+            local f = assert(io.open(path, "wb"))
+            f:write([[<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml"><head><style>
 html, body { margin: 0; padding: 0; }
-body { writing-mode: vertical-rl; font-size: 15px; line-height: 1; padding-top: 3px; }
-p { margin: 0; padding: 0; }
-span { color: #808080; }
+body { writing-mode: vertical-rl; font-size: 15px; line-height: 1; padding-top: ]],
+                padding_top, [[px; }
+p { margin: 0; padding: 0; line-height: 700px; }
 </style></head><body>]])
-        local expected_periods = 11
-        for count = 45, 55 do
-            f:write("<p>", string.rep("一", count),
-                "<span>。</span>二</p>")
-        end
-        f:write([[</body></html>]])
-        f:close()
-
-        local period_reader = ReaderUI:new{
-            dimen = Screen:getSize(),
-            document = DocumentRegistry:openDocument(path),
-        }
-        UIManager:show(period_reader)
-        fastforward_ui_events()
-        period_reader.typography:onToggleFloatingPunctuation(true)
-        fastforward_ui_events()
-        local margins = assert(period_reader.document:getPageMargins())
-        local content_bottom = Screen:getHeight() - margins.bottom
-        local overflow_ink = 0
-        -- getWordFromPosition() intentionally excludes the page margin, so the
-        -- exactly aligned period cannot be counted semantically. Its authored
-        -- mid-gray lets us verify its ink directly in the first few margin rows,
-        -- above the reader footer.
-        local overflow_bottom = math.min(Screen:getHeight() - 1,
-            content_bottom + math.min(10, margins.bottom - 1))
-        for y = content_bottom, overflow_bottom do
-            for x = 3, Screen:getWidth() - 3 do
-                local px = Screen.bb:getPixel(x, y)
-                if px and px:getR() >= 80 and px:getR() <= 190 then
-                    overflow_ink = overflow_ink + 1
-                end
-            end
+            -- The oversized line-height makes the column cross the page's left
+            -- clip. Varying the top padding over one 15px em finds the layout
+            -- where the following stop starts exactly at clip.bottom.
+            f:write("<p>", string.rep("一", 49), "。二</p>")
+            f:write([[</body></html>]])
+            f:close()
         end
 
-        local periods = {}
-        local width, height = Screen:getWidth(), Screen:getHeight()
-        for x = width - 3, 3, -3 do
-            for y = 3, height - 3, 3 do
-                local word = get_word_at(period_reader.document, x, y)
-                if word and word.sbox and word.word:sub(-#"。") == "。" then
-                    local key = string.format("%d:%d:%d:%d", word.sbox.x,
-                        word.sbox.y, word.sbox.w, word.sbox.h)
-                    periods[key] = word.sbox
-                end
-            end
-        end
+        local attempt_count, recovery_count, reject_count
+        local observed_attempt_count = 0
+        local matched_padding
+        for padding_top = 0, 14 do
+            -- A unique path prevents an emulator-opened copy of the manual
+            -- fixture (and its cached document settings) from affecting this
+            -- layout probe.
+            local tmp_base = os.tmpname()
+            os.remove(tmp_base)
+            local path = tmp_base .. ".xhtml"
+            write_fixture(path, padding_top)
 
-        local function has_period_ink(box)
-            -- The semantic word box includes the preceding ideograph. The period is
-            -- the final half-em JFM slot, so inspect only that slot. Its
-            -- authored mid-gray also separates it from the black 十 even when
-            -- the emulator framebuffer itself is grayscale.
-            local slot = math.max(1, math.ceil(box.w / 2))
-            for y = box.y + box.h - slot, box.y + box.h - 1 do
-                for x = box.x, box.x + box.w - 1 do
-                    local px = Screen.bb:getPixel(x, y)
-                    if px and px:getR() >= 80 and px:getR() <= 190 then
-                        return true
-                    end
-                end
-            end
-            return false
-        end
+            local period_reader = ReaderUI:new{
+                dimen = Screen:getSize(),
+                document = DocumentRegistry:openDocument(path),
+            }
+            UIManager:show(period_reader)
+            fastforward_ui_events()
+            -- Make the disabled-to-enabled transition explicit so a saved
+            -- default cannot move the diagnostic draw before the reset.
+            period_reader.typography:onToggleFloatingPunctuation(false)
+            fastforward_ui_events()
+            period_reader.document._document:resetVertExactHangingClip()
+            period_reader.typography:onToggleFloatingPunctuation(true)
+            fastforward_ui_events()
+            attempt_count, recovery_count, reject_count =
+                period_reader.document._document:getVertExactHangingClip()
+            observed_attempt_count = observed_attempt_count + attempt_count
 
-        local found, near_bottom, phantoms, bottom_boxes = 0, 0, {}, {}
-        for _, box in pairs(periods) do
-            found = found + 1
-            if box.y + box.h >= height - 40 then
-                near_bottom = near_bottom + 1
-                table.insert(bottom_boxes, string.format("{%d,%d,%d,%d}",
-                    box.x, box.y, box.w, box.h))
-            end
-            if not has_period_ink(box) then
-                table.insert(phantoms, string.format("{%d,%d,%d,%d}",
-                    box.x, box.y, box.w, box.h))
+            period_reader:onClose()
+            UIManager:quit()
+            UIManager._exit_code = nil
+            DocSettings.updateLocation(path)
+            os.remove(path)
+            -- An exact match that used the line-wide overflow clip is not the
+            -- case under test; keep looking for a per-word recovery (or for a
+            -- rejection, which is what the broken implementation reports).
+            if recovery_count > 0 or reject_count > 0 then
+                matched_padding = padding_top
+                break
             end
         end
         print(string.format(
-            "[col_bottom period] in_content=%d/%d overflow_ink=%d near_bottom=%d boxes=%s phantoms=%s",
-            found, expected_periods, overflow_ink, near_bottom,
-            table.concat(bottom_boxes, ","), table.concat(phantoms, ",")))
+            "[col_bottom hanging] padding_top=%s exact_attempt=%d clip_recovery=%d clip_reject=%d",
+            matched_padding or "none", observed_attempt_count,
+            recovery_count, reject_count))
 
-        period_reader:onClose()
-        UIManager:quit()
-        assert.are.equal(expected_periods - 1, found,
-            "exactly one ideographic full stop should hang outside the content clip")
-        assert.is_true(overflow_ink >= 3,
-            "the hanging ideographic full stop has no ink in the bottom margin")
-        assert.is_true(near_bottom > 0,
-            "fixture did not place an ideographic full stop near a column end")
-        assert.are.same({}, phantoms,
-            "ideographic full stop had a selectable box but no painted glyph")
+        assert.is_true(observed_attempt_count > 0,
+            "no top padding within one em produced an exact-boundary hanging punctuation draw")
+        assert.is_true(recovery_count > 0,
+            "fixture did not exercise per-word recovery from the active clip")
+        assert.are.equal(0, reject_count,
+            "an exact-boundary hanging punctuation remained outside the active draw clip")
     end)
 end)

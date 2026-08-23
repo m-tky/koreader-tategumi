@@ -31,6 +31,15 @@ use Android's APK install flow instead; the APKs published by this fork's GitHub
 releases support the same in-app update check, download the next APK in-app, and
 then hand it to Android's installer.
 
+### Fonts for Japanese vertical text
+
+For correct vertical punctuation and symbols, select a Japanese font with the
+OpenType `vert` and `vrt2` features—`vrt2` is especially important for some
+composite vertical glyphs. Fonts without these vertical substitutions can leave
+brackets, quotation marks, dashes, and other symbols in horizontal forms.
+**Noto Sans CJK JP** and **Noto Serif CJK JP** are suitable examples; add one
+through KOReader's font settings and select it as the document font.
+
 ### Kindle: install with KPM
 
 On a Kindle with the Kindle Package Manager (KPM), add this fork's repository once:
@@ -229,6 +238,14 @@ Kindle、Kobo、PocketBook、Cervantes、reMarkable 版は KOReader のファイ
 Android APK 版は Android の APK インストール機能を使います。本フォークの GitHub
 リリースで配布している APK では、同じアプリ内の更新確認から次の APK を検出・
 ダウンロードし、Android のインストーラに渡して更新できます。
+
+### 日本語縦書き用フォント
+
+縦書きの約物・記号を正しく表示するには、OpenType の `vert` と `vrt2` 機能を
+持つ日本語フォントを選んでください。特に `vrt2` は一部の複合縦組み字形に必要です。
+これらの縦組み字形に未対応のフォントでは、括弧・引用符・ダッシュなどが横書き用の
+字形のまま表示されることがあります。**Noto Sans CJK JP** や **Noto Serif CJK JP**
+が適しています。KOReader のフォント設定から追加し、文書フォントとして選択してください。
 
 ### Kindle: KPM を使ったインストール
 

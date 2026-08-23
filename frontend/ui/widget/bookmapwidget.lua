@@ -694,10 +694,7 @@ function BookMapWidget:init()
     -- so we should avoid allocating memory to huge data structures.
     self.enable_focus_navigation = not Device:isTouchDevice() and Device:hasDPad() and Device:useDPadAsActionKeys()
 
-    -- For vertical-rl documents, mirror the map so page progression runs
-    -- right-to-left (page 1 at the right), matching the reading direction.
-    if self.ui.view:shouldInvertBiDiLayoutMirroring()
-            or (self.ui.document.isVerticalText and self.ui.document:isVerticalText()) then
+    if self.ui.view:shouldInvertPageProgression() then
         BD.invert()
     end
 

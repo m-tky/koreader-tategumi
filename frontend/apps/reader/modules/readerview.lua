@@ -1039,19 +1039,19 @@ function ReaderView:shouldInvertBiDiLayoutMirroring()
     return self.invert_ui_layout
 end
 
--- Single source of truth for the footer progress-bar fill direction.
--- The bar is inverted (fills right→left, TOC ticks mirrored) when the UI layout
--- is mirrored, when RTL reading order is active, or when the document is
--- vertical-rl (page 1 = rightmost).  All call sites (onReadSettings, the two
--- toggles, ReaderAutoDirection, and the footer's own setup) funnel through here
--- so they cannot disagree (e.g. toggling reading order no longer wipes the
--- vertical-rl inversion).
-function ReaderView:syncProgressBarDirection()
-    if not self.footer then return end
+-- Whether document navigation UI should put page 1 on the right. This combines
+-- the manual layout setting with the document's reading order and vertical-rl
+-- layout, so the footer, skim dialog, thumbnail grid, and book map agree.
+function ReaderView:shouldInvertPageProgression()
     local is_rtl = self.inverse_reading_order ~= BD.mirroredUILayout()
     local is_vertical = self.document and self.document.isVerticalText
                         and self.document:isVerticalText()
-    self.footer:invertProgressBar(self.invert_ui_layout or is_rtl or is_vertical)
+    return self.invert_ui_layout or is_rtl or is_vertical
+end
+
+function ReaderView:syncProgressBarDirection()
+    if not self.footer then return end
+    self.footer:invertProgressBar(self:shouldInvertPageProgression())
 end
 
 function ReaderView:onToggleUILayoutMiroring(toggle)

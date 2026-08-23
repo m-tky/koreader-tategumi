@@ -46,10 +46,7 @@ local PageBrowserWidget = FocusManager:extend{
 function PageBrowserWidget:init()
     self.layout = {}
     self.build_focus_layout = not Device:isTouchDevice() and Device:hasDPad() and Device:useDPadAsActionKeys()
-    -- For vertical-rl documents, mirror the thumbnail grid so page progression
-    -- runs right-to-left (page 1 at the right), matching the reading direction.
-    if self.ui.view:shouldInvertBiDiLayoutMirroring()
-            or (self.ui.document.isVerticalText and self.ui.document:isVerticalText()) then
+    if self.ui.view:shouldInvertPageProgression() then
         BD.invert()
     end
 

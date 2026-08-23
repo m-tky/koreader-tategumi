@@ -2515,8 +2515,10 @@ function ReaderFooter:TapFooter(ges)
         local dimen = self.progress_bar.dimen
         -- if reader footer is not drawn before the dimen value should be nil
         if dimen then
-            local percentage = (pos.x - dimen.x)/dimen.w
-            self.ui:handleEvent(Event:new("GotoPercentage", percentage))
+            local percentage = self.progress_bar:getPercentageFromPosition(pos)
+            if percentage then
+                self.ui:handleEvent(Event:new("GotoPercentage", percentage))
+            end
         end
         self:onUpdateFooter(true)
         return true

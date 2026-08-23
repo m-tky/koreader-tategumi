@@ -1,5 +1,5 @@
 describe("Reader auto page direction", function()
-    local Notification, PageDirection, ReaderAutoDirection
+    local BD, Notification, PageDirection, ReaderAutoDirection
 
     local function makeConfig(values)
         local config = { values = values or {} }
@@ -41,6 +41,7 @@ describe("Reader auto page direction", function()
 
     setup(function()
         require("commonrequire")
+        BD = require("ui/bidi")
         Notification = require("ui/widget/notification")
         PageDirection = require("util/page_direction")
         ReaderAutoDirection = require("apps/reader/modules/reader_auto_direction")
@@ -136,6 +137,23 @@ describe("Reader auto page direction", function()
         assert.is_true(config.values.page_direction_user_override)
         assert.is_true(view.inverse_reading_order)
         assert.equals(1, view.refresh_calls)
+    end)
+
+    it("uses the reading order for document page progression", function()
+        local ReaderView = require("apps/reader/modules/readerview")
+        stub(BD, "mirroredUILayout").returns(false)
+        local view = {
+            inverse_reading_order = false,
+            invert_ui_layout = false,
+            document = {
+                isVerticalText = function() return false end,
+            },
+        }
+
+        assert.is_false(ReaderView.shouldInvertPageProgression(view))
+
+        view.inverse_reading_order = true
+        assert.is_true(ReaderView.shouldInvertPageProgression(view))
     end)
 
     it("versions an unknown result without changing the page direction", function()

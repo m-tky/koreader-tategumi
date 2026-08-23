@@ -81,12 +81,9 @@ function SkimToWidget:init()
     self.curr_page = self.ui:getCurrentPage()
     self.page_count = self.ui.document:getPageCount()
 
-    -- Determine if we need to invert the button functionality and labels.
-    -- For vertical-rl documents, also invert so the progress bar fills from the
-    -- right and prev/next buttons match right-to-left reading (page 1 = rightmost),
-    -- mirroring the footer progress bar inversion in ReaderFooter:onReaderReady.
-    local invert_buttons = self.ui.view:shouldInvertBiDiLayoutMirroring()
-        or (self.ui.document.isVerticalText and self.ui.document:isVerticalText())
+    -- Keep the skim UI in step with the footer: its progress bar and navigation
+    -- controls must follow the document's page progression.
+    local invert_buttons = self.ui.view:shouldInvertPageProgression()
 
     self.progress_bar = ProgressWidget:new{
         width = inner_width,

@@ -152,7 +152,19 @@ function FontList:_readList(dir, mark)
         -- And into cached info table
         mark[path] = true
         if self.fontinfo[path] and (self.fontinfo[path].change == attr.change) then
-            return
+            -- `has_vertical_metrics` was added after fontinfo.dat had already
+            -- shipped. Reprobe old entries once so a stale cache is not
+            -- mistaken for an inspected font with unknown capabilities.
+            local has_capabilities = true
+            for _, face in ipairs(self.fontinfo[path]) do
+                if face.has_vertical_metrics == nil then
+                    has_capabilities = false
+                    break
+                end
+            end
+            if has_capabilities then
+                return
+            end
         end
         local fi = collectFaceInfo(path)
         if not fi or not next(fi) then return end
@@ -261,6 +273,14 @@ function FontList:getLocalizedFontName(file, index)
     altname = altname and (altname[tonumber(HB.HB_OT_NAME_ID_FULL_NAME)] or altname[tonumber(HB.HB_OT_NAME_ID_FONT_FAMILY)])
     if not altname then return end -- ensure nil
     return altname
+end
+
+-- Returns cached metadata for one face. Keep this access behind FontList so
+-- callers do not depend on the on-disk cache's path/index layout.
+function FontList:getFaceInfo(file, index)
+    self:getFontList()
+    local faces = self.fontinfo[file]
+    return faces and faces[index + 1]
 end
 
 function FontList:getFontArgFunc()

@@ -82,6 +82,15 @@ function ReaderFont:setupFaceMenuTable()
             -- The font may be available only in italic, for example script/cursive fonts
             font_filename, font_faceindex, is_monospace = cre.getFontFaceFilenameAndFaceIndex(v, nil, true)
         end
+        local function hasMissingVerticalMetrics()
+            if not self.ui.document:isVerticalText() or not font_filename or not font_faceindex then
+                return false
+            end
+            -- nil means a font whose metadata could not be inspected. Do not
+            -- turn that uncertainty into a warning.
+            local face_info = FontList:getFaceInfo(font_filename, font_faceindex)
+            return face_info and face_info.has_vertical_metrics == false
+        end
         table.insert(self.face_table, {
             text_func = function()
                 -- defaults are hardcoded in credocument.lua
@@ -106,6 +115,11 @@ function ReaderFont:setupFaceMenuTable()
                 end
                 if newly_added_fonts[v] then
                     text = text .. "  \u{EA93}" -- "NEW" in a black square, from nerdfont
+                end
+                if hasMissingVerticalMetrics() then
+                    -- This face remains selectable: CRengine falls back to horizontal
+                    -- metrics, but vertical punctuation and alignment may be degraded.
+                    text = text .. "  [" .. _("no vertical metrics") .. "]"
                 end
                 return text
             end,

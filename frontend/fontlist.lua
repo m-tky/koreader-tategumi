@@ -120,6 +120,7 @@ local function collectFaceInfo(path)
             local hbface = HB.hb_ft_face_create_referenced(ftsize.face)
             fres.names = hbface:getNames()
             fres.scripts, fres.langs = hbface:getCoverage()
+            fres.has_vert_gsub, fres.has_vrt2_gsub = hbface:hasVerticalFeatures()
             fres.path = path
             fres.index = i
             table.insert(res, fres)
@@ -152,12 +153,14 @@ function FontList:_readList(dir, mark)
         -- And into cached info table
         mark[path] = true
         if self.fontinfo[path] and (self.fontinfo[path].change == attr.change) then
-            -- `has_vertical_metrics` was added after fontinfo.dat had already
+            -- Capability fields were added after fontinfo.dat had already
             -- shipped. Reprobe old entries once so a stale cache is not
             -- mistaken for an inspected font with unknown capabilities.
             local has_capabilities = true
             for _, face in ipairs(self.fontinfo[path]) do
-                if face.has_vertical_metrics == nil then
+                if face.has_vertical_metrics == nil
+                        or face.has_vert_gsub == nil
+                        or face.has_vrt2_gsub == nil then
                     has_capabilities = false
                     break
                 end

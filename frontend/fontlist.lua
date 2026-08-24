@@ -120,6 +120,7 @@ local function collectFaceInfo(path)
             local hbface = HB.hb_ft_face_create_referenced(ftsize.face)
             fres.names = hbface:getNames()
             fres.scripts, fres.langs = hbface:getCoverage()
+            fres.has_vert_gsub, fres.has_vrt2_gsub = hbface:hasVerticalFeatures()
             fres.path = path
             fres.index = i
             table.insert(res, fres)
@@ -152,7 +153,21 @@ function FontList:_readList(dir, mark)
         -- And into cached info table
         mark[path] = true
         if self.fontinfo[path] and (self.fontinfo[path].change == attr.change) then
-            return
+            -- Capability fields were added after fontinfo.dat had already
+            -- shipped. Reprobe old entries once so a stale cache is not
+            -- mistaken for an inspected font with unknown capabilities.
+            local has_capabilities = true
+            for _, face in ipairs(self.fontinfo[path]) do
+                if face.has_vertical_metrics == nil
+                        or face.has_vert_gsub == nil
+                        or face.has_vrt2_gsub == nil then
+                    has_capabilities = false
+                    break
+                end
+            end
+            if has_capabilities then
+                return
+            end
         end
         local fi = collectFaceInfo(path)
         if not fi or not next(fi) then return end
@@ -261,6 +276,14 @@ function FontList:getLocalizedFontName(file, index)
     altname = altname and (altname[tonumber(HB.HB_OT_NAME_ID_FULL_NAME)] or altname[tonumber(HB.HB_OT_NAME_ID_FONT_FAMILY)])
     if not altname then return end -- ensure nil
     return altname
+end
+
+-- Returns cached metadata for one face. Keep this access behind FontList so
+-- callers do not depend on the on-disk cache's path/index layout.
+function FontList:getFaceInfo(file, index)
+    self:getFontList()
+    local faces = self.fontinfo[file]
+    return faces and faces[index + 1]
 end
 
 function FontList:getFontArgFunc()

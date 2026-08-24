@@ -64,6 +64,14 @@ function ReaderFont:setupFaceMenuTable()
         sub_item_table_func = function() return self:getFontFamiliesTable() end,
         separator = true,
     })
+    table.insert(self.face_table, {
+        text = _("Diagnose vertical font"),
+        callback = function()
+            self:showVerticalFontDiagnostic()
+        end,
+        keep_menu_open = true,
+        separator = true,
+    })
     -- Font list
     cre = require("document/credocument"):engineInit()
     local face_list = cre.getFontFaces()
@@ -145,6 +153,63 @@ function ReaderFont:setupFaceMenuTable()
     -- Have TouchMenu show half of the usual nb of items, so we
     -- have more room to see how the text looks with that font
     self.face_table.max_per_page = 5
+end
+
+function ReaderFont:showVerticalFontDiagnostic()
+    cre = cre or require("document/credocument"):engineInit()
+    local font_filename, font_faceindex = cre.getFontFaceFilenameAndFaceIndex(self.font_face)
+    if not font_filename then
+        font_filename, font_faceindex = cre.getFontFaceFilenameAndFaceIndex(self.font_face, nil, true)
+    end
+    local font_name = self.font_face
+    if font_filename and font_faceindex then
+        font_name = FontList:getLocalizedFontName(font_filename, font_faceindex) or font_name
+    end
+
+    local lines = {
+        _("Vertical font diagnosis"),
+        "",
+        T(_("Selected font: %1"), BD.wrap(font_name)),
+        "",
+    }
+    local face_info = font_filename and font_faceindex
+        and FontList:getFaceInfo(font_filename, font_faceindex)
+    if not face_info then
+        table.insert(lines, _("The selected font could not be inspected."))
+    else
+        if face_info.has_vertical_metrics == true then
+            table.insert(lines, _("Vertical metrics: available."))
+        elseif face_info.has_vertical_metrics == false then
+            table.insert(lines, _("Vertical metrics: not available."))
+        else
+            table.insert(lines, _("Vertical metrics could not be inspected."))
+        end
+
+        if face_info.has_vert_gsub == true and face_info.has_vrt2_gsub == true then
+            table.insert(lines, _("Vertical glyph forms: available."))
+        elseif face_info.has_vert_gsub == false and face_info.has_vrt2_gsub == false then
+            table.insert(lines, _("Vertical glyph forms: not available."))
+        elseif face_info.has_vert_gsub == nil or face_info.has_vrt2_gsub == nil then
+            table.insert(lines, _("Vertical glyph forms could not be inspected."))
+        else
+            table.insert(lines, _("Vertical glyph forms: partially available."))
+        end
+
+        if face_info.has_vertical_metrics == false
+                or (face_info.has_vert_gsub == false and face_info.has_vrt2_gsub == false) then
+            table.insert(lines, "")
+            table.insert(lines, _("This font can still be used. If punctuation or brackets look incorrect, try another font."))
+        end
+    end
+
+    local embedded_fonts = self.ui.document:getEmbeddedFontList()
+    if embedded_fonts and next(embedded_fonts) ~= nil then
+        table.insert(lines, "")
+        table.insert(lines, _("The book provides embedded fonts. This diagnosis covers the selected font; text may still use a different font."))
+    end
+    UIManager:show(InfoMessage:new{
+        text = table.concat(lines, "\n"),
+    })
 end
 
 function ReaderFont:onGesture() end

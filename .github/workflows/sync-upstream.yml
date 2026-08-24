@@ -2,7 +2,7 @@ name: Sync from upstream koreader
 
 on:
   schedule:
-    - cron: '0 9 * * 5'  # Friday at 09:00 UTC (18:00 JST)
+    - cron: '0 9 * * 5' # Friday at 09:00 UTC (18:00 JST)
   workflow_dispatch:
 
 concurrency:
@@ -14,13 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          # A PAT with the "workflow" permission is needed when upstream
-          # changes files under .github/workflows/.
+          # A PAT with the workflow permission is required if upstream changes
+          # a workflow file.
           token: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
 
       - name: Configure git
@@ -28,97 +29,81 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
 
-      - name: Fetch upstream
+      - name: Fetch upstream and create a candidate branch
+        env:
+          BRANCH: upstream-sync/master
         run: |
           git remote add upstream https://github.com/koreader/koreader.git
           git fetch upstream master
+          git fetch origin master
+          git switch --create "$BRANCH" origin/master
 
-      - name: Merge from upstream koreader
+      - name: Merge upstream while retaining fork-owned pins
+        id: merge
+        env:
+          BRANCH_BASE: origin/master
         run: |
-          resolve_ours() {
-            file_path="$1"
-            stage2="$(git ls-files -u -- "$file_path" | awk '$3 == 2 { print $1 " " $2; exit }')"
-            if [ -z "$stage2" ]; then
-              return 0
-            fi
+          set +e
+          git merge upstream/master --no-edit
+          merge_status=$?
+          set -e
 
-            mode="${stage2%% *}"
-            sha="${stage2#* }"
-            if [ "$mode" = "160000" ]; then
-              git update-index --cacheinfo "$mode,$sha,$file_path"
-            else
-              git checkout --ours -- "$file_path"
-              git add "$file_path"
-            fi
-          }
+          if [ "$merge_status" -ne 0 ]; then
+            # The fork owns these pins; accept our side only when they conflict.
+            for path in .gitmodules base test; do
+              if git ls-files -u -- "$path" | grep -q .; then
+                git checkout --ours -- "$path"
+                git add -- "$path"
+              fi
+            done
 
-          restore_our_pins() {
-            resolve_ours .gitmodules
-            resolve_ours base
-            resolve_ours test
-          }
-
-          if git merge upstream/master --no-edit; then
-            echo "MERGE_FAILED=false" >> $GITHUB_ENV
-          else
-            restore_our_pins
-            REMAINING_CONFLICTS="$(git diff --name-only --diff-filter=U)"
-            if [ -z "$REMAINING_CONFLICTS" ]; then
-              git commit --no-edit
-              echo "MERGE_FAILED=false" >> $GITHUB_ENV
+            unresolved="$(git diff --name-only --diff-filter=U)"
+            if [ -n "$unresolved" ]; then
+              {
+                echo 'unresolved<<EOF'
+                echo "$unresolved"
+                echo EOF
+              } >> "$GITHUB_OUTPUT"
+              git merge --abort
               exit 0
             fi
-
-            # Create a branch with the conflicted state for PR review
-            git merge --abort
-            BRANCH="upstream-sync-$(date +%Y%m%d)"
-            git checkout -b "$BRANCH"
-            git merge upstream/master --no-edit || true
-            restore_our_pins
-            git add -A
-            git commit -m "WIP: upstream sync $(date +%Y-%m-%d) — conflicts need resolution"
-            git push origin "$BRANCH"
-            echo "MERGE_FAILED=true" >> $GITHUB_ENV
-            echo "SYNC_BRANCH=$BRANCH" >> $GITHUB_ENV
+            git commit --no-edit
           fi
 
-      - name: Restore our submodule pins (base, test, and .gitmodules)
-        if: env.MERGE_FAILED != 'true'
+          # Upstream must never replace the fork's base/test/gitmodules pins.
+          git checkout "$BRANCH_BASE" -- .gitmodules base test
+          if ! git diff --cached --quiet; then
+            git commit -m "sync: retain tategumi submodule pins"
+          fi
+          echo 'unresolved=' >> "$GITHUB_OUTPUT"
+
+      - name: Report unresolved conflicts
+        if: steps.merge.outputs.unresolved != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # ORIG_HEAD is only set when a merge commit was created.
-          # If upstream had nothing new, skip this step entirely.
-          if ! git rev-parse --verify ORIG_HEAD > /dev/null 2>&1; then
-            echo "Already up to date — nothing to restore."
+          gh issue create \
+            --title "Upstream sync requires resolution ($(date -u +%F))" \
+            --body "The automatic candidate could not resolve these conflicts after retaining the fork-owned pins:\n\n\`\`\`text\n${{ steps.merge.outputs.unresolved }}\n\`\`\`"
+
+      - name: Push candidate and create or update pull request
+        if: steps.merge.outputs.unresolved == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: upstream-sync/master
+        run: |
+          if git diff --quiet origin/master...HEAD; then
+            echo "Already up to date with upstream."
             exit 0
           fi
-          CHANGED=0
-          git checkout ORIG_HEAD -- .gitmodules base test
-          if ! git diff --cached --quiet; then
-            CHANGED=1
+          git push --force-with-lease origin "$BRANCH"
+          existing="$(gh pr list --head "$BRANCH" --base master --state open --json url --jq '.[0].url')"
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "Upstream sync: koreader/koreader"
+          else
+            gh pr create \
+              --base master \
+              --head "$BRANCH" \
+              --title "Upstream sync: koreader/koreader" \
+              --body "Automated candidate merge from upstream. Fork-owned submodule pins are retained; merge this PR only after CI and review pass."
           fi
-          if [ "$CHANGED" = "1" ]; then
-            git commit --amend --no-edit
-          fi
-
-      - name: Push
-        if: env.MERGE_FAILED != 'true'
-        run: |
-          git fetch origin master
-          if ! git merge-base --is-ancestor origin/master HEAD; then
-            git rebase origin/master
-          fi
-          git push origin master
-
-      - name: Create PR on merge conflict
-        if: env.MERGE_FAILED == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.pulls.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `Upstream sync ${new Date().toISOString().slice(0,10)}: conflicts need resolution`,
-              head: process.env.SYNC_BRANCH,
-              base: 'master',
-              body: `Automatic sync from koreader/koreader failed due to merge conflicts.\n\nThis PR contains the conflicted state — please resolve the markers and merge.\n\nWorkflow run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-            });

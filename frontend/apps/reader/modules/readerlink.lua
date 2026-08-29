@@ -725,6 +725,15 @@ function ReaderLink:onTap(_, ges)
         if link then
             return self:showLinkBox(link, allow_footnote_popup)
         end
+        -- In vertical documents, crengine's point-to-text lookup can miss a
+        -- ruby child line box even though getPageLinks() has its rendered
+        -- segment rectangle. Reuse that rectangle-based path with a zero
+        -- distance: it follows only a link containing the actual tap, never
+        -- a nearby link (the optional larger tap area remains below).
+        local followed = self:onGoToPageLink(ges, false, 0)
+        if followed then
+            return followed
+        end
     end
     if isLargerTapAreaToFollowLinksEnabled() or isTapIgnoreExternalLinksEnabled() then
         local max_distance = 0 -- used when only isTapIgnoreExternalLinksEnabled()

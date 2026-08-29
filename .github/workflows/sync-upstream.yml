@@ -80,7 +80,7 @@ jobs:
       - name: Report unresolved conflicts
         if: steps.merge.outputs.unresolved != ''
         env:
-          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue create \
             --title "Upstream sync requires resolution ($(date -u +%F))" \
@@ -89,9 +89,7 @@ jobs:
       - name: Push candidate and create or update pull request
         if: steps.merge.outputs.unresolved == ''
         env:
-          # Repository GITHUB_TOKENs may be barred from creating pull requests.
-          # Use the configured PAT for both the push and PR API when available.
-          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
           BRANCH: upstream-sync/master
         run: |
           if git diff --quiet origin/master...HEAD; then

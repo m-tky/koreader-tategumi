@@ -99,4 +99,36 @@ describe("Vertical text: inline image placement", function()
         assert.are.equal(0, axis_drift,
             string.format("vertical CJK drifted from the image column axis (worst: %d px)", axis_max_px))
     end)
+
+    it("draws a page-sized image wrapped in an inline-block #inline_block_image", function()
+        if not lfs.attributes(epub_path) then
+            pending("inline_image_test.epub fixture missing")
+            return
+        end
+
+        readerui = ReaderUI:new{
+            dimen = Screen:getSize(),
+            document = DocumentRegistry:openDocument(epub_path),
+        }
+        doc = readerui.document
+        readerui.styletweak.book_style_tweak = [[
+            img.mark {
+                display: inline-block !important;
+                width: 12em !important;
+                height: 16em !important;
+            }
+        ]]
+        readerui.styletweak.book_style_tweak_enabled = true
+        readerui.styletweak:updateCssText(true)
+        doc._document:resetVertImageDrawDrift()
+
+        UIManager:show(readerui)
+        fastforward_ui_events()
+        readerui.rolling:onGotoPage(1)
+        fastforward_ui_events()
+
+        local draw_count = doc._document:getVertImageDrawDrift()
+        assert.is_true(draw_count > 0,
+            "page-sized image inside a vertical inline-block was not drawn")
+    end)
 end)

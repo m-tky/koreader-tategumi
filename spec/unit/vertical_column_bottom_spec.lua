@@ -254,7 +254,7 @@ describe("Vertical column bottom", function()
         end)
     end)
 
-    it("recovers an exact-boundary full stop in a partially clipped column #column_bottom", function()
+    it("renders a boundary-crossing full stop outside the regular clip #column_bottom", function()
         local function write_fixture(path, padding_top)
             local f = assert(io.open(path, "wb"))
             f:write([[<?xml version="1.0" encoding="UTF-8"?>
@@ -272,7 +272,28 @@ p { margin: 0; padding: 0; line-height: 700px; }
             f:close()
         end
 
-        local attempt_count, recovery_count, reject_count
+        local function write_screenshot_fixture(path)
+            local f = assert(io.open(path, "wb"))
+            f:write([[<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><style>
+html, body { margin: 0; padding: 0; }
+body { writing-mode: vertical-rl; font-size: 15px; line-height: 1; padding-top: 3px; }
+p { margin: 0; padding: 0; }
+</style></head><body>]])
+            local repeated_text =
+                "これは縦書きのぶら下げ表示を確認するために同じ文を続けて配置した長い文章です"
+            local final_text =
+                "最後の句点だけを段の外へぶら下げて表示するために文字数を調整します"
+            local extra_char = os.getenv("KOREADER_HANGING_EXTRA_CHAR") and "字" or ""
+            f:write("<p>", string.rep(repeated_text, 7), final_text,
+                extra_char, "。</p>")
+            f:write([[</body></html>]])
+            f:close()
+        end
+
+        local attempt_count, recovery_count, reject_count, draw_count, layout_count
+        local font_entry_count, outside_regular_count, active_clip_count
+        local regular_bottom, active_bottom, glyph_top, glyph_bottom
         local observed_attempt_count = 0
         local matched_padding
         for padding_top = 0, 14 do
@@ -297,8 +318,11 @@ p { margin: 0; padding: 0; line-height: 700px; }
             period_reader.document._document:resetVertExactHangingClip()
             period_reader.typography:onToggleFloatingPunctuation(true)
             fastforward_ui_events()
-            attempt_count, recovery_count, reject_count =
+            attempt_count, recovery_count, reject_count, draw_count, layout_count =
                 period_reader.document._document:getVertExactHangingClip()
+            font_entry_count, outside_regular_count, active_clip_count,
+                regular_bottom, active_bottom, glyph_top, glyph_bottom =
+                period_reader.document._document:getVertExactHangingGlyph()
             observed_attempt_count = observed_attempt_count + attempt_count
 
             period_reader:onClose()
@@ -306,7 +330,7 @@ p { margin: 0; padding: 0; line-height: 700px; }
             UIManager._exit_code = nil
             DocSettings.updateLocation(path)
             os.remove(path)
-            -- An exact match that used the line-wide overflow clip is not the
+            -- A boundary-crossing stop that used the line-wide overflow clip is not the
             -- case under test; keep looking for a per-word recovery (or for a
             -- rejection, which is what the broken implementation reports).
             if recovery_count > 0 or reject_count > 0 then
@@ -314,16 +338,77 @@ p { margin: 0; padding: 0; line-height: 700px; }
                 break
             end
         end
+
+        local screenshot_path = os.getenv("KOREADER_HANGING_SCREENSHOT")
+        if recovery_count > 0 then
+            local tmp_base = os.tmpname()
+            os.remove(tmp_base)
+            local path = tmp_base .. ".xhtml"
+            write_screenshot_fixture(path)
+            local screenshot_reader = ReaderUI:new{
+                dimen = Screen:getSize(),
+                document = DocumentRegistry:openDocument(path),
+            }
+            UIManager:show(screenshot_reader)
+            fastforward_ui_events()
+            screenshot_reader.typography:onToggleFloatingPunctuation(false)
+            fastforward_ui_events()
+            screenshot_reader.document._document:resetVertExactHangingClip()
+            screenshot_reader.typography:onToggleFloatingPunctuation(true)
+            fastforward_ui_events()
+            local sa, sr, sj, sd, sl =
+                screenshot_reader.document._document:getVertExactHangingClip()
+            local sfe, sor, sac, srb, sab, sgt, sgb =
+                screenshot_reader.document._document:getVertExactHangingGlyph()
+            if screenshot_path then
+                Screen:shot(screenshot_path)
+                print("[col_bottom hanging] screenshot=" .. screenshot_path)
+            end
+            print(string.format(
+                "[col_bottom hanging screenshot] layout_hang=%d exact_attempt=%d clip_recovery=%d clip_reject=%d font_entry=%d glyph_draw=%d outside_regular=%d inside_active_clip=%d regular_bottom=%d glyph_y=%d..%d active_bottom=%d",
+                sl, sa, sr, sj, sfe, sd, sor, sac, srb, sgt, sgb, sab))
+            if not os.getenv("KOREADER_HANGING_EXTRA_CHAR") then
+                assert.is_true(sl > 0,
+                    "the long paragraph did not lay out its final stop as hanging punctuation")
+                assert.is_true(sa > 0,
+                    "the long paragraph's boundary-crossing stop was not recognized while drawing")
+                assert.is_true(sd > 0,
+                    "the long paragraph's hanging stop did not submit a glyph bitmap")
+                assert.is_true(sor > 0 and sgb > srb,
+                    "the long paragraph's hanging stop did not render beyond the regular clip")
+                assert.are.equal(sd, sac,
+                    "the long paragraph's hanging glyph was clipped by the active overflow clip")
+                assert.is_true(sgb <= sab,
+                    "the long paragraph's hanging glyph exceeded the active overflow clip")
+            end
+            screenshot_reader:onClose()
+            UIManager:quit()
+            UIManager._exit_code = nil
+            DocSettings.updateLocation(path)
+            os.remove(path)
+        end
         print(string.format(
-            "[col_bottom hanging] padding_top=%s exact_attempt=%d clip_recovery=%d clip_reject=%d",
-            matched_padding or "none", observed_attempt_count,
-            recovery_count, reject_count))
+            "[col_bottom hanging] padding_top=%s layout_hang=%d exact_attempt=%d clip_recovery=%d clip_reject=%d font_entry=%d glyph_draw=%d outside_regular=%d inside_active_clip=%d regular_bottom=%d glyph_y=%d..%d active_bottom=%d",
+            matched_padding or "none", layout_count, observed_attempt_count,
+            recovery_count, reject_count, font_entry_count, draw_count,
+            outside_regular_count, active_clip_count, regular_bottom,
+            glyph_top, glyph_bottom, active_bottom))
 
         assert.is_true(observed_attempt_count > 0,
-            "no top padding within one em produced an exact-boundary hanging punctuation draw")
+            "no top padding within one em produced a boundary-crossing hanging punctuation draw")
         assert.is_true(recovery_count > 0,
             "fixture did not exercise per-word recovery from the active clip")
         assert.are.equal(0, reject_count,
-            "an exact-boundary hanging punctuation remained outside the active draw clip")
+            "a boundary-crossing hanging punctuation remained outside the active draw clip")
+        assert.is_true(draw_count > 0,
+            "the recovered hanging punctuation did not submit a glyph bitmap")
+        assert.is_true(outside_regular_count > 0,
+            "the test glyph did not render beyond the regular content clip")
+        assert.is_true(glyph_bottom > regular_bottom,
+            "the test glyph rectangle did not cross the regular content clip bottom")
+        assert.are.equal(draw_count, active_clip_count,
+            "the hanging glyph bitmap was clipped by the expanded active clip")
+        assert.is_true(glyph_bottom <= active_bottom,
+            "the hanging glyph extended beyond the expanded active clip")
     end)
 end)

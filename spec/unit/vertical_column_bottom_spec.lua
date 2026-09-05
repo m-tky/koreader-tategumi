@@ -354,12 +354,15 @@ p { margin: 0; padding: 0; }
             screenshot_reader.typography:onToggleFloatingPunctuation(false)
             fastforward_ui_events()
             screenshot_reader.document._document:resetVertExactHangingClip()
+            screenshot_reader.document._document:resetVertFallbackSize()
             screenshot_reader.typography:onToggleFloatingPunctuation(true)
             fastforward_ui_events()
             local sa, sr, sj, sd, sl =
                 screenshot_reader.document._document:getVertExactHangingClip()
             local sfe, sor, sac, srb, sab, sgt, sgb =
                 screenshot_reader.document._document:getVertExactHangingGlyph()
+            local fallback_samples, fallback_mismatches, fallback_max_px =
+                screenshot_reader.document._document:getVertFallbackSizeStats()
             if screenshot_path then
                 Screen:shot(screenshot_path)
                 print("[col_bottom hanging] screenshot=" .. screenshot_path)
@@ -367,6 +370,9 @@ p { margin: 0; padding: 0; }
             print(string.format(
                 "[col_bottom hanging screenshot] layout_hang=%d exact_attempt=%d clip_recovery=%d clip_reject=%d font_entry=%d glyph_draw=%d outside_regular=%d inside_active_clip=%d regular_bottom=%d glyph_y=%d..%d active_bottom=%d",
                 sl, sa, sr, sj, sfe, sd, sor, sac, srb, sgt, sgb, sab))
+            print(string.format(
+                "[vertical spacing] fallback_samples=%d size_mismatches=%d max_size_diff=%d",
+                fallback_samples, fallback_mismatches, fallback_max_px))
             if not os.getenv("KOREADER_HANGING_EXTRA_CHAR") then
                 assert.is_true(sl > 0,
                     "the long paragraph did not lay out its final stop as hanging punctuation")
@@ -380,6 +386,12 @@ p { margin: 0; padding: 0; }
                     "the long paragraph's hanging glyph was clipped by the active overflow clip")
                 assert.is_true(sgb <= sab,
                     "the long paragraph's hanging glyph exceeded the active overflow clip")
+                assert.is_true(fallback_samples > 0,
+                    "the long paragraph did not exercise vertical fallback glyph drawing")
+                assert.are.equal(0, fallback_mismatches,
+                    "vertical fallback glyphs were visually resized away from the nominal em")
+                assert.are.equal(0, fallback_max_px,
+                    "vertical fallback glyph size differed from the layout capsule size")
             end
             screenshot_reader:onClose()
             UIManager:quit()

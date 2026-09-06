@@ -100,7 +100,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=kindle
+        run: bash .github/scripts/retry-build.sh make TARGET=kindle
       - name: Package
         run: make TARGET=kindle update
       - name: Rename for nightly
@@ -133,7 +133,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=kindlehf
+        run: bash .github/scripts/retry-build.sh make TARGET=kindlehf
       - name: Package
         run: make TARGET=kindlehf update
       - name: Rename for nightly
@@ -166,7 +166,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=kindlepw2
+        run: bash .github/scripts/retry-build.sh make TARGET=kindlepw2
       - name: Package
         run: make TARGET=kindlepw2 update
       - name: Rename for nightly
@@ -199,7 +199,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=kobo
+        run: bash .github/scripts/retry-build.sh make TARGET=kobo
       - name: Package
         run: make TARGET=kobo update
       - name: Rename for nightly
@@ -232,7 +232,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=pocketbook
+        run: bash .github/scripts/retry-build.sh make TARGET=pocketbook
       - name: Package
         run: make TARGET=pocketbook update
       - name: Rename for nightly
@@ -265,7 +265,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=pocketbookhf
+        run: bash .github/scripts/retry-build.sh make TARGET=pocketbookhf
       - name: Package
         run: make TARGET=pocketbookhf update
       - name: Rename for nightly
@@ -298,7 +298,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=cervantes
+        run: bash .github/scripts/retry-build.sh make TARGET=cervantes
       - name: Package
         run: make TARGET=cervantes update
       - name: Rename for nightly
@@ -331,7 +331,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=remarkable
+        run: bash .github/scripts/retry-build.sh make TARGET=remarkable
       - name: Package
         run: make TARGET=remarkable update
       - name: Rename for nightly
@@ -364,7 +364,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=remarkable-aarch64
+        run: bash .github/scripts/retry-build.sh make TARGET=remarkable-aarch64
       - name: Package
         run: make TARGET=remarkable-aarch64 update
       - name: Rename for nightly
@@ -398,7 +398,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=android
+        run: bash .github/scripts/retry-build.sh make TARGET=android
       - name: Package
         run: make TARGET=android update
       - name: Sign APK
@@ -439,7 +439,7 @@ jobs:
       - name: Fetch submodules
         run: make fetchthirdparty
       - name: Build
-        run: make TARGET=android ANDROID_ARCH=arm64
+        run: bash .github/scripts/retry-build.sh make TARGET=android ANDROID_ARCH=arm64
       - name: Package
         run: make TARGET=android ANDROID_ARCH=arm64 update
       - name: Sign APK
@@ -481,7 +481,7 @@ jobs:
         # Use the version computed in check-changes so we agree with what the
         # build jobs embedded via RELEASE_TAG (otherwise OTA Filename and the
         # tarball's git-rev would diverge if the build crossed UTC midnight).
-        run: echo "NIGHTLY_VERSION=${{ needs.check-changes.outputs.nightly_version }}" >> $GITHUB_ENV
+        run: echo "NIGHTLY_VERSION=${{ needs.check-changes.outputs.nightly_version }}" >> "$GITHUB_ENV"
 
       - uses: actions/download-artifact@v4
         with:
@@ -559,7 +559,7 @@ jobs:
           cp "$kindle_package" "${kindle_package/koreader-kindle-/koreader-kindle-legacy-}"
           for package in artifacts/**/*.tar.xz; do
             name=$(basename "$package")
-            latest_name="${name%%-$VER*}-latest-nightly.kotasync"
+            latest_name="${name%%-"${VER}"*}-latest-nightly.kotasync"
             "$KOTASYNC" make "$package" "$(dirname "$package")/$latest_name"
           done
 

@@ -80,7 +80,9 @@ jobs:
       - name: Report unresolved conflicts
         if: steps.merge.outputs.unresolved != ''
         env:
-          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          # The sync PAT is scoped for repository contents so it can push
+          # upstream workflow changes. Use the job token for Issues API calls.
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue create \
             --title "Upstream sync requires resolution ($(date -u +%F))" \
@@ -89,9 +91,9 @@ jobs:
       - name: Push candidate and create or update pull request
         if: steps.merge.outputs.unresolved == ''
         env:
-          # Repository GITHUB_TOKENs may be barred from creating pull requests.
-          # Use the configured PAT for both the push and PR API when available.
-          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+          # checkout persists the sync PAT for git push. The PAT has no Pull
+          # requests scope, so use the explicitly permitted job token here.
+          GH_TOKEN: ${{ github.token }}
           BRANCH: upstream-sync/master
         run: |
           if git diff --quiet origin/master...HEAD; then

@@ -103,11 +103,12 @@ jobs:
           git push --force-with-lease origin "$BRANCH"
           existing="$(gh pr list --head "$BRANCH" --base master --state open --json url --jq '.[0].url')"
           if [ -n "$existing" ]; then
-            gh pr edit "$existing" --title "Upstream sync: koreader/koreader"
+            echo "Updating existing pull request: $existing"
           else
-            gh pr create \
-              --base master \
-              --head "$BRANCH" \
-              --title "Upstream sync: koreader/koreader" \
-              --body "Automated candidate merge from upstream. Fork-owned submodule pins are retained; merge this PR only after CI and review pass."
+            gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
+              -f base=master \
+              -f head="$BRANCH" \
+              -f title="Upstream sync: koreader/koreader" \
+              -f body="Automated candidate merge from upstream. Fork-owned submodule pins are retained; merge this PR only after CI and review pass." \
+              --jq .html_url
           fi

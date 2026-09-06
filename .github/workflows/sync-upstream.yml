@@ -101,7 +101,11 @@ jobs:
             exit 0
           fi
           git push --force-with-lease origin "$BRANCH"
-          existing="$(gh pr list --head "$BRANCH" --base master --state open --json url --jq '.[0].url')"
+          existing="$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+            -f state=open \
+            -f base=master \
+            -f head="$GITHUB_REPOSITORY_OWNER:$BRANCH" \
+            --jq '.[0].html_url // empty')"
           if [ -n "$existing" ]; then
             echo "Updating existing pull request: $existing"
           else

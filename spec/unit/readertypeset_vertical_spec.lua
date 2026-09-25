@@ -47,4 +47,39 @@ describe("ReaderTypeset vertical reading", function()
         assert.are.equal("Vertical reading", menu_items.document_settings.sub_item_table[1].text)
         assert.is_truthy(menu_items.document_settings.sub_item_table[1].help_text:find("horizontal reading", 1, true))
     end)
+
+    it("warns after enabling vertical reading, but not when disabling", function()
+        local UIManager = require("ui/uimanager")
+        local original_show = UIManager.show
+        local shown_message
+        local after_open_callback
+        local typeset = setmetatable({
+            vertical_reading = false,
+            ui = {
+                doc_settings = { saveSetting = function() end },
+                reloadDocument = function(_, _, _, callback)
+                    after_open_callback = callback
+                end,
+            },
+        }, { __index = ReaderTypeset })
+
+        UIManager.show = function(_, message)
+            shown_message = message
+        end
+        local ok, err = pcall(function()
+            assert.is_true(typeset:onToggleVerticalReading(true))
+            assert.is_function(after_open_callback)
+            after_open_callback()
+            assert.is_truthy(shown_message.text:find("horizontal reading", 1, true))
+            assert.are.equal(5, shown_message.timeout)
+            assert.are.equal("notice-warning", shown_message.icon)
+
+            after_open_callback = nil
+            typeset:onToggleVerticalReading(false)
+            assert.is_nil(after_open_callback)
+        end)
+        UIManager.show = original_show
+        assert.is_true(ok, err)
+    end)
+
 end)

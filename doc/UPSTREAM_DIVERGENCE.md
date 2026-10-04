@@ -64,7 +64,7 @@ For every conflict in an upstream-owned CRengine file, decide one of:
 ### October 2026 synchronization
 
 - Merged KOReader `b44e9b791` and koreader-base `c7a6ff708`; the fork's
-  CRengine already contains upstream `f4a8be93`.
+  CRengine already contains upstream `517b8f0a`.
 - Retained the fork's release workflow and channel-specific OTA servers.
   Kept the fork's macOS workflow in `build-macos.yml`, leaving `build.yml`
   available for upstream's reusable build workflow and its callers.

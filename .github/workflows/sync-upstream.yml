@@ -52,8 +52,8 @@ jobs:
             # The fork owns these pins; accept our side only when they conflict.
             for path in .gitmodules base test; do
               if git ls-files -u -- "$path" | grep -q .; then
-                git checkout --ours -- "$path"
-                git add -- "$path"
+                # Restore the index directly: submodules are not checked out.
+                git restore --source="$BRANCH_BASE" --staged --worktree -- "$path"
               fi
             done
 

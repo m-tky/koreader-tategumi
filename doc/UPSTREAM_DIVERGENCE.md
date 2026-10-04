@@ -61,6 +61,19 @@ For every conflict in an upstream-owned CRengine file, decide one of:
 - extract an upstream-neutral prerequisite and propose it upstream; or
 - retain the integration point, with a comment and a regression test.
 
+### October 2026 synchronization
+
+- Merged KOReader `b44e9b791` and koreader-base `c7a6ff708`; the fork's
+  CRengine already contains upstream `f4a8be93`.
+- Retained the fork's release workflow and channel-specific OTA servers.
+  Kept the fork's macOS workflow in `build-macos.yml`, leaving `build.yml`
+  available for upstream's reusable build workflow and its callers.
+- Retained `RELEASE_TAG` for fork releases while adopting upstream's
+  `git describe --match='v[0-9]*'` fallback.
+- Restored conflicting fork-owned pins directly into the index during automatic
+  sync. A clean, non-recursive checkout reproduced the failed `base` merge and
+  verified that `git restore` resolves it without initializing the submodule.
+
 ## Candidate upstream contributions
 
 These should be proposed separately from vertical Japanese behavior when they

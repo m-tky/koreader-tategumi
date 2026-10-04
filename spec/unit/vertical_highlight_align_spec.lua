@@ -80,7 +80,7 @@ describe("Vertical text: highlight box column alignment", function()
         -- Find a word by scanning horizontally.
         -- credocument:getWordFromPosition returns {sbox=Geom, word=str, ...}
         local Geom = require("ui/geometry")
-        local tap_x, tap_y, raw_sbox
+        local tap_x, tap_y, raw_sbox, raw_word
         local mid_y = math.floor(sh * 0.5)
         for try_x = sw - 20, 30, -10 do
             local w = doc:getWordFromPosition(Geom:new{x = try_x, y = mid_y})

@@ -112,7 +112,7 @@ describe("Enclosed alphanumeric vertical text", function()
         -- Less discriminating: a single ① between CJK chars is its own word
         -- even without the fix (CJK neighbours act as word separators).
         -- The discriminating case lives in the next test.
-        local x, y, word = find_word(doc, "①")
+        local _, _, word = find_word(doc, "①")
         assert.truthy(word,
             "no tap position returned word=\"①\" — Enclosed Alphanumerics "
             .. "may not be classified as CJK (lStr_isCJK regression?)")
@@ -123,7 +123,7 @@ describe("Enclosed alphanumeric vertical text", function()
         -- Enclosed Alphanumerics are treated specially only during vertical
         -- drawing. Their selection semantics remain unchanged so horizontal
         -- documents do not acquire new CJK word boundaries.
-        local x, y, word = find_word_containing(doc, "⑦")
+        local _, _, word = find_word_containing(doc, "⑦")
         assert.truthy(word,
             "no tap position returned word=\"⑦\" — Enclosed Alphanumerics "
             .. "could not be found in the circled-number run")
@@ -164,7 +164,7 @@ describe("Enclosed alphanumeric vertical text", function()
         end
         if strut == 0 then pending("could not determine strut"); return end
 
-        local x, y, word = find_word(doc, "①")
+        local _, _, word = find_word(doc, "①")
         if not word then pending("① not found"); return end
         local sb = word.sbox
         assert.truthy(math.abs(sb.w - strut) <= 1,

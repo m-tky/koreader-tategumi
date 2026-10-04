@@ -16,14 +16,14 @@ ADJUST_TOTAL_JQ="
     (.assets | length) as \$n |
     (.assets | map(.download_count) | min // 0) as \$m |
     (.assets | map(.download_count) | add // 0) as \$sum |
-    if \$n >= $BOT_DETECT_MIN_ASSETS and \$m >= 1
+    if \$n >= ${BOT_DETECT_MIN_ASSETS} and \$m >= 1
     then { total: (\$sum - \$m * \$n + 1), bot_floor: \$m, n: \$n, raw: \$sum }
     else { total: \$sum, bot_floor: 0, n: \$n, raw: \$sum }
     end;
 "
 
-gh api "repos/$REPO/releases" --jq "
-  $ADJUST_TOTAL_JQ
+gh api "repos/${REPO}/releases" --jq "
+  ${ADJUST_TOTAL_JQ}
   .[] |
   . as \$rel |
   (\$rel | adjust_total) as \$a |
@@ -41,7 +41,7 @@ gh api "repos/$REPO/releases" --jq "
 " | grep -v '^$'
 
 echo ""
-echo "Grand total: $(gh api "repos/$REPO/releases" --jq "
-  $ADJUST_TOTAL_JQ
+echo "Grand total: $(gh api "repos/${REPO}/releases" --jq "
+  ${ADJUST_TOTAL_JQ}
   [.[] | adjust_total.total] | add
 ") downloads"

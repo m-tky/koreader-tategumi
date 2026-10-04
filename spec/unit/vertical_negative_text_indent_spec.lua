@@ -66,7 +66,8 @@ p { margin: 1em 0; padding-left: 5em; text-indent: 1.2em; -cr-hint: default-text
                 end
             end
         end
-        for _, sb in pairs(seen) do return sb end
+        local _, sb = next(seen)
+        return sb
     end
 
     it("applies a negative length to the first formatted column only", function()

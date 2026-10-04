@@ -77,14 +77,14 @@ td { width: 5em; height: 5em; padding: 0; border: 1px solid; }
         local sentinel = {}
         local page_boxes = {}
         local words = collect_words(doc)
-        local boxes = {}
+        local collected_boxes = {}
         for _, item in pairs(words) do
-            boxes[#boxes + 1] = item.sbox
+            collected_boxes[#collected_boxes + 1] = item.sbox
             if item.text == "標" then
                 sentinel[#sentinel + 1] = item.sbox
             end
         end
-        page_boxes[#page_boxes + 1] = boxes
+        page_boxes[#page_boxes + 1] = collected_boxes
 
         assert.is_true(#sentinel >= 1, "rowspan cell was not reachable in the table layout")
 

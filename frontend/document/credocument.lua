@@ -921,7 +921,6 @@ function CreDocument:getScreenPositionFromXPointer(xp)
         if not screen_x then
             -- Off-screen: return doc-derived fallback so callers can still
             -- check direction/visibility.
-            local CanvasContext = require("document/canvascontext")
             local page_right = CanvasContext:getWidth() - doc_margins["right"]
             screen_x = page_right - (doc_y - top_y)
             screen_y = doc_x

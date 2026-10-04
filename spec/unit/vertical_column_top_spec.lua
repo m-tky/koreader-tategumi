@@ -58,7 +58,7 @@ describe("Vertical text: column top alignment (no staircase)", function()
         if not epub_path then pending("no epub"); return end
 
         local doc = readerui.document
-        local w, h = Screen:getWidth(), Screen:getHeight()
+        local w = Screen:getWidth()
 
         -- Find a page with text then scan for the topmost word in each column
         local found_near_top = 0
@@ -71,12 +71,10 @@ describe("Vertical text: column top alignment (no staircase)", function()
             -- Sample across columns (x-axis), look for words near screen top (y ≈ 20-50)
             -- A word within 50px of top means that column starts near top
             for tx = w - 10, 20, -26 do
-                local near_top = false
                 -- Check three y-levels near the screen top
                 for ty = 20, 60, 10 do
                     local word = doc:getWordFromPosition({x=tx, y=ty})
                     if word and word.sbox and word.sbox.h > 8 then
-                        near_top = true
                         found_near_top = found_near_top + 1
                         break
                     end

@@ -58,7 +58,7 @@ describe("Vertical text", function()
 
     -- Find a single position with content. Returns (x, word, sbox) or nil.
     local function find_any_content(doc)
-        local w, h = Screen:getWidth(), Screen:getHeight()
+        local h = Screen:getHeight()
         -- Try multiple y positions across the page.
         for _, y_frac in ipairs({0.3, 0.5, 0.2, 0.7}) do
             local y = math.floor(h * y_frac)
@@ -113,14 +113,14 @@ describe("Vertical text", function()
 
         it("should find a word somewhere on the vertical-rl page", function()
             -- Dynamic content detection: scan multiple positions.
-            local x, y, word = find_any_content(doc)
+            local _, _, word = find_any_content(doc)
             assert.truthy(word,
                 "No word found anywhere on page in vertical-rl mode")
             assert.truthy(#word.word > 0, "Word has empty text")
         end)
 
         it("should return sbox with positive width and height", function()
-            local x, y, word, sb = find_any_content(doc)
+            local x, y, _, sb = find_any_content(doc)
             assert.truthy(sb, "No word/sbox found on page")
             assert.truthy(sb.w > 0,
                 string.format("sbox.w=%d not positive at (%d,%d)", sb.w, x, y))
@@ -134,7 +134,7 @@ describe("Vertical text", function()
             local tol = 60  -- generous tolerance for margin offsets
             local x, y, word, sb
             local first_x, first_y, first_word, first_sb
-            local w, h = Screen:getWidth(), Screen:getHeight()
+            local h = Screen:getHeight()
             for _, y_frac in ipairs({0.3, 0.5, 0.2, 0.7}) do
                 local yy = math.floor(h * y_frac)
                 local xs = find_content_columns(doc, yy, 1)
@@ -416,7 +416,6 @@ describe("Vertical text", function()
         end)
 
         it("vertical selection within one column covers significant height", function()
-            local w = Screen:getWidth()
             local h = Screen:getHeight()
             local top_y = math.floor(h * 0.1)
             -- Find a column that has content at top.  Then probe downward to

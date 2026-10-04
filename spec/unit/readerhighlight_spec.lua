@@ -122,7 +122,7 @@ describe("Readerhighlight module", function()
                     local sb = word.sbox
                     if not line1_y then
                         line1_y = sb.y + math.floor(sb.h / 2)
-                    elseif sb.y > line1_y + sb.h and not line2_y then
+                    elseif sb.y > line1_y + sb.h then
                         line2_y = sb.y + math.floor(sb.h / 2)
                         break
                     end

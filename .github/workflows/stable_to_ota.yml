@@ -24,6 +24,8 @@ env:
 jobs:
 
   upload_to_ota:
+    # FORK (tategumi): release.yml publishes our channel-specific OTA assets.
+    if: github.repository == 'koreader/koreader'
     name: Upload to OTA
     runs-on: ubuntu-26.04
     steps:

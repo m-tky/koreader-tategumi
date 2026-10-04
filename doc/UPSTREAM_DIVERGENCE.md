@@ -73,6 +73,8 @@ For every conflict in an upstream-owned CRengine file, decide one of:
 - Restored conflicting fork-owned pins directly into the index during automatic
   sync. A clean, non-recursive checkout reproduced the failed `base` merge and
   verified that `git restore` resolves it without initializing the submodule.
+- Upstream documentation, translation, and OTA publication jobs run only in
+  `koreader/koreader`; this fork uses its existing release publication workflow.
 
 ## Candidate upstream contributions
 

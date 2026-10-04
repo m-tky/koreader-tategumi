@@ -23,6 +23,8 @@ defaults:
 jobs:
 
   update_documentation:
+    # FORK (tategumi): publication environments belong to upstream.
+    if: github.repository == 'koreader/koreader'
     name: Update documentation
     environment: documentation
     runs-on: ubuntu-26.04
@@ -54,6 +56,7 @@ jobs:
         run: ./.ci/documentation_update.sh
 
   update_translations:
+    if: github.repository == 'koreader/koreader'
     name: Update translations
     environment: translations
     runs-on: ubuntu-26.04

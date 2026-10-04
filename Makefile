@@ -13,7 +13,7 @@ RELEASE_DATE := $(shell git show -s --format=format:"%cd" --date=short HEAD)
 ifdef RELEASE_TAG
   VERSION := $(RELEASE_TAG)
 else
-  VERSION := $(shell git describe HEAD)
+  VERSION := $(shell git describe --match='v[0-9]*' HEAD)
 endif
 RELEASE_EPOCH := $(shell env TZ=UTC git log -1 --format='%cs' $(word 1,$(subst -, ,$(VERSION))))
 # Only append date if we're not on a whole version, like v2018.11

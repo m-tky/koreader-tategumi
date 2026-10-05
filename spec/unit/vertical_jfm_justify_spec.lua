@@ -3,7 +3,8 @@ Vertical text: JFM-based justification.
 
 This checks the fork-only vertical post-pass that applies LuaTeX-ja/JFM
 base glue and justify stretch/shrink to word->x. It intentionally uses sboxes
-instead of screenshot pixels so it can run in the existing unit environment.
+and XPointer coordinates instead of screenshot pixels so it can run in the
+existing unit environment.
 --]]
 
 describe("Vertical text JFM justify #vertical_jfm_justify", function()
@@ -30,7 +31,7 @@ describe("Vertical text JFM justify #vertical_jfm_justify", function()
         fastforward_ui_events()
     end
 
-    local function ensure_html_fixture()
+    local function ensure_html_fixture(text)
         local phrase =
             "これは縦組み本文の均等配置を確認するための長い本文です。「句読点」、中点・疑問符？！を含めても、非最終列は自然に末端まで届きます。"
         local body = {}
@@ -47,7 +48,7 @@ body { writing-mode: vertical-rl; text-align: justify; font-family: serif; }
 p { margin: 0; text-align: justify; }
 </style>
 </head>
-<body><p>]] .. table.concat(body) .. [[</p></body>
+<body><p>]] .. (text or table.concat(body)) .. [[</p></body>
 </html>]]
         local f = assert(io.open(html_path, "wb"))
         f:write(html)
@@ -104,8 +105,8 @@ p { margin: 0; text-align: justify; }
         return list, em
     end
 
-    local function open_reader()
-        local path = ensure_html_fixture()
+    local function open_reader(text)
+        local path = ensure_html_fixture(text)
         local readerui = ReaderUI:new{
             dimen = Screen:getSize(),
             document = DocumentRegistry:openDocument(path),
@@ -115,34 +116,130 @@ p { margin: 0; text-align: justify; }
         return readerui
     end
 
-    it("justifies non-final CJK columns to within 2px of the page bottom", function()
-        local readerui = open_reader()
-        apply_css(readerui, "auto")
-        readerui.rolling:onGotoPage(1)
+    local function positions_for(text, chars, alignment)
+        local reader = open_reader(text)
+        reader.styletweak.book_style_tweak =
+            "body, p { writing-mode: vertical-rl !important; text-align: " .. alignment ..
+            " !important; text-align-last: " .. alignment .. " !important; }"
+        reader.styletweak.book_style_tweak_enabled = true
+        reader.styletweak:updateCssText(true)
         fastforward_ui_events()
-
-        local columns, em = collect_columns(readerui.document)
-        readerui:onClose()
+        reader.rolling:onGotoPage(1)
+        fastforward_ui_events()
+        local positions = {}
+        for _, char in ipairs(chars) do
+            local hits = reader.document:findAllText(char, false, 0, 10, false)
+            assert.truthy(hits and hits[1], "missing search hit for " .. char)
+            local y, x = reader.document:getScreenPositionFromXPointer(hits[1].start)
+            positions[#positions + 1] = {x = x, y = y}
+        end
+        positions.bottom = Screen:getHeight() - reader.document:getPageMargins().bottom
+        reader:onClose()
         UIManager:quit()
+        UIManager._exit_code = nil
+        return positions
+    end
 
-        if #columns < 4 then pending("not enough columns found"); return end
-        local page_bottom = 0
-        for _, c in ipairs(columns) do page_bottom = math.max(page_bottom, c.bottom) end
-        local full_count_min = math.max(8, math.floor(page_bottom / math.max(1, em)) - 2)
-        local checked, best_shortfall = 0, math.huge
-        for _, c in ipairs(columns) do
-            local shortfall = page_bottom - c.bottom
-            if c.count >= full_count_min and c.bottom > Screen:getHeight() * 0.70 then
-                checked = checked + 1
-                best_shortfall = math.min(best_shortfall, shortfall)
-                print(string.format(
-                    "[vertical_jfm_justify] x=%d count=%d bottom=%d page_bottom=%d shortfall=%d em=%d",
-                    c.x, c.count, c.bottom, page_bottom, shortfall, em))
+    it("distributes body fallback evenly in final and non-final columns", function()
+        local chars = {"天", "地", "玄", "黄", "宇", "宙", "洪", "荒"}
+        local text = table.concat(chars)
+        for _, sample in ipairs({text, text:rep(100)}) do
+            local ragged = positions_for(sample, chars, "left")
+            local justified = positions_for(sample, chars, "justify")
+            local min_extra, max_extra = math.huge, 0
+            for i = 2, #chars do
+                assert.equals(justified[1].x, justified[i].x, "sample should stay in one column")
+                local extra = (justified[i].y - justified[i-1].y) - (ragged[i].y - ragged[i-1].y)
+                assert.truthy(extra >= 0, "body spacing must not shrink")
+                min_extra = math.min(min_extra, extra)
+                max_extra = math.max(max_extra, extra)
+            end
+            assert.truthy(max_extra - min_extra <= 1, "rounding must be balanced within one pixel")
+            if sample == text then
+                assert.equals(justified.bottom, justified[#chars].y + 26,
+                    "explicitly justified final column must reach the bottom")
+                local total_extra = (justified[#chars].y - justified[1].y)
+                    - (ragged[#chars].y - ragged[1].y)
+                for i = 2, #chars do
+                    local cumulative_extra = (justified[i].y - justified[1].y)
+                        - (ragged[i].y - ragged[1].y)
+                    assert.equals(math.floor((i-1) * total_extra / (#chars-1)), cumulative_extra,
+                        "fractional pixels must carry across the column")
+                end
             end
         end
-        if checked < 2 then pending("not enough full non-final columns found"); return end
-        assert.truthy(best_shortfall <= 2,
-            string.format("best full-column shortfall=%dpx; expected <=2px", best_shortfall))
+    end)
+
+    it("keeps Japanese-Western boundary spacing fixed", function()
+        local chars = {"天", "A", "地", "B", "玄", "C", "黄"}
+        local text = table.concat(chars)
+        local ragged = positions_for(text, chars, "left")
+        local justified = positions_for(text, chars, "justify")
+        for i = 2, #chars do
+            assert.equals(justified[1].x, justified[i].x)
+            assert.equals(ragged[i].y - ragged[i-1].y, justified[i].y - justified[i-1].y,
+                "Japanese-Western spacing changed at " .. chars[i])
+        end
+    end)
+
+    it("uses punctuation capacity before balanced body fallback", function()
+        local chars = {"天", "地", "玄", "黄", "、", "宇", "宙", "洪", "荒"}
+        local text = table.concat(chars)
+        local ragged = positions_for(text, chars, "left")
+        local justified = positions_for(text, chars, "justify")
+        local min_extra, max_extra = math.huge, 0
+        for i = 2, #chars do
+            assert.equals(justified[1].x, justified[i].x, "short text should stay in one column")
+            local extra = (justified[i].y - justified[i-1].y) - (ragged[i].y - ragged[i-1].y)
+            if i == 6 then
+                assert.equals(math.floor(26 / 4), extra, "comma capacity must be used in full first")
+            elseif i == 5 then
+                assert.equals(0, extra, "spacing before a comma must not expand")
+            else
+                assert.truthy(extra > 0, "remaining space must reach body boundaries")
+                min_extra = math.min(min_extra, extra)
+                max_extra = math.max(max_extra, extra)
+            end
+        end
+        assert.truthy(max_extra - min_extra <= 1, "body fallback must be balanced")
+        assert.equals(justified.bottom, justified[#chars].y + 26)
+    end)
+
+    it("does not expand body spacing when punctuation alone can fill the column", function()
+        local chars = {"天", "地", "玄", "黄", "、", "宇", "宙", "洪", "荒"}
+        local text = table.concat(chars)
+        local initial = positions_for(text, chars, "left")
+        local shortfall = initial.bottom - (initial[#chars].y + 26)
+        local original_bb, original_height = Screen.bb, Screen.screen_size.h
+        local height = original_height - shortfall + 3
+        Screen.bb = require("ffi/blitbuffer").new(Screen:getWidth(), height, original_bb:getType())
+        Screen.screen_size.h = height
+        local ok, err = pcall(function()
+            local ragged, remaining
+            -- Footer margins depend on the viewport height, so calibrate with
+            -- actual document coordinates instead of assuming a fixed margin.
+            for _ = 1, 4 do
+                ragged = positions_for(text, chars, "left")
+                remaining = ragged.bottom - (ragged[#chars].y + 26)
+                if remaining > 0 and remaining <= math.floor(26 / 4) then break end
+                height = height - (remaining - 3)
+                Screen.bb:free()
+                Screen.bb = require("ffi/blitbuffer").new(Screen:getWidth(), height, original_bb:getType())
+                Screen.screen_size.h = height
+            end
+            assert.truthy(remaining > 0 and remaining <= math.floor(26 / 4))
+            local justified = positions_for(text, chars, "justify")
+            for i = 2, #chars do
+                assert.equals(justified[1].x, justified[i].x)
+                local extra = (justified[i].y - justified[i-1].y) - (ragged[i].y - ragged[i-1].y)
+                assert.equals(i == 6 and remaining or 0, extra,
+                    "punctuation must absorb the small remainder without body expansion")
+            end
+            assert.equals(justified.bottom, justified[#chars].y + 26)
+        end)
+        Screen.bb:free()
+        Screen.bb, Screen.screen_size.h = original_bb, original_height
+        assert.truthy(ok, err)
     end)
 
     it("keeps text-align-last:auto ragged but allows text-align-last:justify", function()

@@ -4,7 +4,7 @@ applies it to the reader view when the user has not made an explicit choice.
 
 Supported sources:
 - EPUB: `page-progression-direction` attribute on the OPF `<spine>` element
-  (stored in document props by crengine's epubfmt.cpp, exposed via cre.cpp)
+  (read directly from the archive, independently of the native DOM cache)
 - CBZ/CBR/CBT: `<Manga>YesAndRightToLeft</Manga>` inside ComicInfo.xml,
   with `<ReadingDirection>` accepted for compatibility
 
@@ -21,7 +21,7 @@ local Notification = require("ui/widget/notification")
 local _ = require("gettext")
 
 local ReaderAutoDirection = EventListener:extend{}
-ReaderAutoDirection.DETECTION_VERSION = 2
+ReaderAutoDirection.DETECTION_VERSION = 3
 
 function ReaderAutoDirection:onReadSettings(config)
     -- inverse_reading_order is serialized for every document on close, even
@@ -65,16 +65,8 @@ function ReaderAutoDirection:onReadSettings(config)
     -- value; re-apply now to reflect the auto-detected reading order.
     self.view.inverse_reading_order = not BD.mirroredUILayout()
     self.view:refreshPageTurnInput()
-    self:_syncProgressBar()
-    Notification:notify(_("RTL page order detected – switching automatically."))
-end
-
--- Recompute and apply the combined progress-bar inversion.
--- Called after auto-detection so the bar reflects the updated reading order.
--- Delegates to ReaderView's single helper so the inversion logic (mirrored UI /
--- RTL reading order / vertical-rl) lives in exactly one place.
-function ReaderAutoDirection:_syncProgressBar()
     self.view:syncProgressBarDirection()
+    Notification:notify(_("RTL page order detected – switching automatically."))
 end
 
 return ReaderAutoDirection

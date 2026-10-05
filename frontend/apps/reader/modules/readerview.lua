@@ -667,6 +667,8 @@ function ReaderView:drawHighlightRect(bb, _x, _y, rect, drawer, color, draw_note
         end
     end
     local is_gray = not color or Blitbuffer.isColor8(color)
+    local is_vertical = self.document and self.document.isVerticalAtPosition
+        and self.document:isVerticalAtPosition({x = rect.x + rect.w / 2, y = rect.y + rect.h / 2})
     if drawer == "lighten" then
         local lighten_factor = self.highlight.temp and next(self.highlight.temp)
             and (G_reader_settings:readSetting("highlight_selection_lighten_factor") or 0.2) or self.highlight.lighten_factor
@@ -691,7 +693,6 @@ function ReaderView:drawHighlightRect(bb, _x, _y, rect, drawer, color, draw_note
         if is_gray then
             color = Blitbuffer.COLOR_GRAY_4
         end
-        local is_vertical = self.document and self.document.isVerticalText and self.document:isVerticalText()
         if is_vertical then
             -- In vertical-rl, draw a bousen (sideline) on the right edge of the column
             -- (the "before" / annotation side), running the full selection height.
@@ -711,7 +712,6 @@ function ReaderView:drawHighlightRect(bb, _x, _y, rect, drawer, color, draw_note
         if is_gray then
             color = Blitbuffer.COLOR_BLACK
         end
-        local is_vertical = self.document and self.document.isVerticalText and self.document:isVerticalText()
         if is_vertical then
             -- In vertical-rl, draw a vertical strikeout through the column center.
             local line_x = x + math.floor(w / 2) - math.floor(Size.line.medium / 2)
@@ -739,8 +739,7 @@ function ReaderView:drawHighlightRect(bb, _x, _y, rect, drawer, color, draw_note
             -- With most annotation styles, we'd risk making this invisible if we used the same color,
             -- so, always draw this in black.
             bb:paintRect(x, y + h - 1, w, Size.line.medium, Blitbuffer.COLOR_BLACK)
-        elseif self.ui.rolling and self.document.isVerticalText
-                and self.document:isVerticalText() then
+        elseif self.ui.rolling and is_vertical then
             -- Fork: vertical-rl uses a horizontal mark in the bottom margin,
             -- aligned X-wise with the column the highlight covers.  Bottom
             -- placement is the analog of the horizontal-text right margin
@@ -1047,9 +1046,9 @@ end
 -- layout, so the footer, skim dialog, thumbnail grid, and book map agree.
 function ReaderView:shouldInvertPageProgression()
     local is_rtl = self.inverse_reading_order ~= BD.mirroredUILayout()
-    local is_vertical = self.document and self.document.isVerticalText
-                        and self.document:isVerticalText()
-    return self.invert_ui_layout or is_rtl or is_vertical
+    local is_vertical = self.document and self.document.hasVerticalContent
+                        and self.document:hasVerticalContent()
+    return not not (self.invert_ui_layout or is_rtl or is_vertical)
 end
 
 function ReaderView:syncProgressBarDirection()
@@ -1489,7 +1488,7 @@ function ReaderView:getTapZones()
     -- auto-direction managed to set inverse_reading_order (it only fires when
     -- the EPUB declares PPD=RTL, which not all vertical-rl EPUBs do).  If the
     -- upstream block above did NOT already mirror, do it now.
-    if self.ui.rolling and self.document.isVerticalText and self.document:isVerticalText()
+    if self.ui.rolling and self.document.hasVerticalContent and self.document:hasVerticalContent()
             and self.inverse_reading_order == BD.mirroredUILayout() then
         forward_zone.ratio_x = 1 - forward_zone.ratio_x - forward_zone.ratio_w
         backward_zone.ratio_x = 1 - backward_zone.ratio_x - backward_zone.ratio_w
@@ -1524,16 +1523,13 @@ function ReaderView:setupNoteMarkPosition()
         -- Fork: vertical-rl mode places the side mark in the bottom margin
         -- (analog of the right margin for horizontal-text).  We store Y only;
         -- the per-rect X (column position) is resolved at draw time.
-        if self.ui.rolling and self.document.isVerticalText
-                and self.document:isVerticalText() then
+        if self.ui.rolling and self.document.hasVerticalContent
+                and self.document:hasVerticalContent() then
             local doc_margins = self.document:getPageMargins()
             local sign_h = is_sidemark and self.note_mark_sign:getHeight() or self.note_mark_line_w
             local screen_h = Screen:getHeight()
             self.note_mark_pos_y1 = math.min(screen_h - doc_margins["bottom"] + sign_gap,
                                              screen_h - sign_h)
-            self.note_mark_pos_x1 = nil
-            self.note_mark_pos_x2 = nil
-            return
         end
         if self.ui.paging then
             if BD.mirroredUILayout() then

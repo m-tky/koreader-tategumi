@@ -1789,7 +1789,8 @@ function ReaderHighlight:onHold(arg, ges)
             end
         end
 
-        local is_vertical = self.ui.document.isVerticalText and self.ui.document:isVerticalText()
+        local is_vertical = self.ui.document.isVerticalAtPosition
+            and self.ui.document:isVerticalAtPosition(self.hold_pos)
         if self.ui.paging then
             self.view.highlight.temp[self.hold_pos.page] = self.selected_text.sboxes
             -- Unfortunately, getWordFromPosition() may not return good coordinates,
@@ -1847,7 +1848,8 @@ function ReaderHighlight:onHoldPan(_, ges)
     self.holdpan_pos = self.view:screenToPageTransform(ges.pos)
     logger.dbg("holdpan position in page", self.holdpan_pos)
 
-    local is_vertical = self.ui.document.isVerticalText and self.ui.document:isVerticalText()
+    local is_vertical = self.ui.document.isVerticalAtPosition
+        and self.ui.document:isVerticalAtPosition(self.holdpan_pos)
     if self.ui.rolling and self.allow_corner_scroll and self.selected_text_start_xpointer then
         -- With CreDocuments, allow text selection across multiple pages
         -- by (temporarily) switching to scroll mode when panning to the

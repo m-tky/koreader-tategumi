@@ -92,19 +92,43 @@ end
 
 -- ── EPUB OPF ─────────────────────────────────────────────────────────────
 
--- Extract the OPF root-file path from META-INF/container.xml content.
-local function opfPathFromContainer(xml)
+-- Read only the metadata start tags we need; tolerate namespace prefixes,
+-- both XML quote styles and whitespace around '='. Ignore commented-out tags.
+local function tagAttribute(xml, element, attribute)
     if not xml then return nil end
-    return xml:match('full%-path="([^"]+)"')
+    xml = xml:gsub("<!%[CDATA%[.-%]%]>", ""):gsub("<!%-%-.-%-%->", "")
+    local cursor = 1
+    while true do
+        local _, name_end, name = xml:find("<%s*([%w_.:-]+)", cursor)
+        if not name then return nil end
+        local tag_end = name_end
+        -- A '>' inside a quoted value does not end the start tag.
+        while true do
+            local pos, _, delimiter = xml:find("([>'\"])", tag_end + 1)
+            if not pos then return nil end
+            tag_end = pos
+            if delimiter == ">" then break end
+            tag_end = xml:find(delimiter, pos + 1, true)
+            if not tag_end then return nil end
+        end
+        cursor = tag_end + 1
+        if (name:match("([^:]+)$")) == element then
+            local attrs = xml:sub(name_end + 1, tag_end - 1)
+            for key, _, value in attrs:gmatch("([%w_.:-]+)%s*=%s*(['\"])(.-)%2") do
+                if key == attribute then
+                    return require("util").htmlEntitiesToUtf8(value)
+                end
+            end
+        end
+    end
 end
 
--- Extract page-progression-direction from OPF content.
+local function opfPathFromContainer(xml)
+    return tagAttribute(xml, "rootfile", "full-path")
+end
+
 local function ppdFromOPF(xml)
-    if not xml then return nil end
-    -- Match the <spine> element (possibly with many attributes).
-    local spine = xml:match("<spine[^>]*>") or xml:match("<spine[^/]*/?>")
-    if not spine then return nil end
-    local ppd = spine:match('page%-progression%-direction="(%a+)"')
+    local ppd = tagAttribute(xml, "spine", "page-progression-direction")
     if not ppd then return nil end
     ppd = ppd:lower()
     return (ppd == "rtl" or ppd == "ltr") and ppd or nil

@@ -912,11 +912,8 @@ function CreDocument:getScreenPositionFromXPointer(xp)
     local doc_y, doc_x = self:getPosFromXPointer(xp)
     local top_y = self:getCurrentPos()
     local screen_y, screen_x
-    if self:isVerticalText() then
-        -- Use crengine's docToWindowPoint to get the correctly-centered screen
-        -- position (vertPageRight includes a centering offset when the page
-        -- content is narrower than the text area; a hand-rolled mirror would
-        -- omit it and produce a marker shifted into the right margin).
+    if self._document:isVerticalPosition(doc_y) then
+        -- Use the same right-edge anchor as native drawing and selection.
         screen_x, screen_y = self._document:docToScreenPoint(doc_y, doc_x)
         if not screen_x then
             -- Off-screen: return doc-derived fallback so callers can still
@@ -1509,8 +1506,25 @@ function CreDocument:isBuiltDomStale()
     return self._document:isBuiltDomStale()
 end
 
+-- Document-wide query for page progression, not selection/drawing geometry.
+function CreDocument:hasVerticalContent()
+    return self._document:hasVerticalContent()
+end
+
 function CreDocument:isVerticalText()
-    return self._document:isVerticalText()
+    return self:hasVerticalContent() -- compatibility with older consumers
+end
+
+function CreDocument:getPageWritingMode(page)
+    return self._document:getPageWritingMode(page)
+end
+
+function CreDocument:isVerticalPage(page)
+    return self:getPageWritingMode(page) == "vertical-rl"
+end
+
+function CreDocument:isVerticalAtPosition(pos)
+    return self._document:isVerticalAtScreenPoint(pos.x, pos.y)
 end
 
 function CreDocument:hasCacheFile()
@@ -1921,6 +1935,7 @@ function CreDocument:setupCallCache()
             -- data that we'd rather not cache, are called with many different args,
             -- or we'd rather have up to date crengine state)
             elseif name == "getCurrentPage" then no_wrap = true
+            elseif name == "getPageWritingMode" then no_wrap = true -- nil means the current page
             elseif name == "getCurrentPos" then no_wrap = true
             elseif name == "getVisiblePageCount" then no_wrap = true
             elseif name == "getVisiblePageNumberCount" then no_wrap = true

@@ -351,8 +351,8 @@ function ReaderRolling:onReaderReady()
     -- subsequent pages to the left), so inverse_reading_order must be true.
     -- Also enforce page mode: scroll mode breaks vertical-rl column layout.
     -- Always enforce these on open regardless of any previously saved value.
-    if self.ui.document:isVerticalText() then
-        self.view.inverse_reading_order = true
+    if self.ui.document:hasVerticalContent() then
+        self.view.inverse_reading_order = not BD.mirroredUILayout()
         -- Mark this as a forced value (not a user choice), so ReaderView's
         -- onSaveSettings does not persist it: if the book later renders
         -- horizontal (style tweak removed / Embedded Styles off), a persisted
@@ -362,6 +362,7 @@ function ReaderRolling:onReaderReady()
             self.ui:handleEvent(Event:new("SetViewMode", "page"))
         end
     end
+    self.view:syncProgressBarDirection()
     self:setupTouchZones()
     self:registerKeyEvents()
     if self.hide_nonlinear_flows then
@@ -821,7 +822,8 @@ function ReaderRolling:onGotoXPointer(xp, marker_xp)
         -- where xpointer target is (and remove if after 1s).
         local screen_y, screen_x = self.ui.document:getScreenPositionFromXPointer(marker_xp)
         local doc_margins = self.ui.document:getPageMargins()
-        local is_vertical = self.ui.document.isVerticalText and self.ui.document:isVerticalText()
+        local is_vertical = self.ui.document.isVerticalAtPosition
+            and self.ui.document:isVerticalAtPosition({x = screen_x, y = screen_y})
         local marker_w, marker_h
         if is_vertical then
             marker_w = Screen:scaleBySize(self.configurable.font_size * 1.1 * self.configurable.line_spacing * (1/100))

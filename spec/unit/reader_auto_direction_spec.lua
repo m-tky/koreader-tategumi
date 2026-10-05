@@ -79,6 +79,18 @@ describe("Reader auto page direction", function()
             config.values.direction_auto_detected_version)
     end)
 
+    it("rechecks a cached none result from the previous detector version", function()
+        stub(PageDirection, "getDirection").returns("rtl")
+        local detector, view = makeDetector(false)
+        local config = makeConfig({
+            direction_auto_detected = "none",
+            direction_auto_detected_version = 2,
+        })
+        detector:onReadSettings(config)
+        assert.is_true(view.inverse_reading_order)
+        assert.equals(ReaderAutoDirection.DETECTION_VERSION, config.values.direction_auto_detected_version)
+    end)
+
     it("does not rescan a result from the current detector", function()
         stub(PageDirection, "getDirection")
         local detector = makeDetector(false)
@@ -146,7 +158,7 @@ describe("Reader auto page direction", function()
             inverse_reading_order = false,
             invert_ui_layout = false,
             document = {
-                isVerticalText = function() return false end,
+                hasVerticalContent = function() return false end,
             },
         }
 

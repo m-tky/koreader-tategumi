@@ -36,12 +36,14 @@ jobs:
       - name: Load every platform C definition with LuaJIT
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y luajit
+          sudo apt-get install -y luajit p7zip-full
           for platform in android_arm android_arm64 android_x64 android_x86 linux_arm linux_arm64 linux_x64 macos; do
             cdef="base/ffi-cdecl/posix_h_${platform}.lua"
             echo "Checking $cdef"
             luajit "$cdef"
           done
+      - name: Check OTA archive conversion
+        run: python3 .github/scripts/test-ota-assets.py
 
   kindle:
     name: Kindle
@@ -64,15 +66,12 @@ jobs:
         run: make TARGET=kindle update
       - name: Rename for release
         run: |
-          cp koreader-kindle-*.zip koreader-kindle-latest-stable.zip || true
-          cp koreader-kindle-*.targz koreader-kindle-latest-stable.targz || true
+          cp koreader-kindle-*.zip koreader-kindle-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: kindle
-          path: |
-            koreader-kindle-latest-stable.zip
-            koreader-kindle-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-kindle-latest-stable.zip
 
   kindlehf:
     name: Kindle (HF)
@@ -95,15 +94,12 @@ jobs:
         run: make TARGET=kindlehf update
       - name: Rename for release
         run: |
-          cp koreader-kindlehf-*.zip koreader-kindlehf-latest-stable.zip || true
-          cp koreader-kindlehf-*.targz koreader-kindlehf-latest-stable.targz || true
+          cp koreader-kindlehf-*.zip koreader-kindlehf-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: kindlehf
-          path: |
-            koreader-kindlehf-latest-stable.zip
-            koreader-kindlehf-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-kindlehf-latest-stable.zip
 
   kindlepw2:
     name: Kindle (PW2/non-HF)
@@ -126,15 +122,12 @@ jobs:
         run: make TARGET=kindlepw2 update
       - name: Rename for release
         run: |
-          cp koreader-kindlepw2-*.zip koreader-kindlepw2-latest-stable.zip || true
-          cp koreader-kindlepw2-*.targz koreader-kindlepw2-latest-stable.targz || true
+          cp koreader-kindlepw2-*.zip koreader-kindlepw2-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: kindlepw2
-          path: |
-            koreader-kindlepw2-latest-stable.zip
-            koreader-kindlepw2-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-kindlepw2-latest-stable.zip
 
   kobo:
     name: Kobo
@@ -157,15 +150,12 @@ jobs:
         run: make TARGET=kobo update
       - name: Rename for release
         run: |
-          cp koreader-kobo-*.zip koreader-kobo-latest-stable.zip || true
-          cp koreader-kobo-*.targz koreader-kobo-latest-stable.targz || true
+          cp koreader-kobo-*.zip koreader-kobo-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: kobo
-          path: |
-            koreader-kobo-latest-stable.zip
-            koreader-kobo-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-kobo-latest-stable.zip
 
   pocketbook:
     name: PocketBook
@@ -188,15 +178,12 @@ jobs:
         run: make TARGET=pocketbook update
       - name: Rename for release
         run: |
-          cp koreader-pocketbook-*.zip koreader-pocketbook-latest-stable.zip || true
-          cp koreader-pocketbook-*.targz koreader-pocketbook-latest-stable.targz || true
+          cp koreader-pocketbook-*.zip koreader-pocketbook-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: pocketbook
-          path: |
-            koreader-pocketbook-latest-stable.zip
-            koreader-pocketbook-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-pocketbook-latest-stable.zip
 
   pocketbookhf:
     name: PocketBook (HF)
@@ -219,15 +206,12 @@ jobs:
         run: make TARGET=pocketbookhf update
       - name: Rename for release
         run: |
-          cp koreader-pocketbookhf-*.zip koreader-pocketbookhf-latest-stable.zip || true
-          cp koreader-pocketbookhf-*.targz koreader-pocketbookhf-latest-stable.targz || true
+          cp koreader-pocketbookhf-*.zip koreader-pocketbookhf-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: pocketbookhf
-          path: |
-            koreader-pocketbookhf-latest-stable.zip
-            koreader-pocketbookhf-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-pocketbookhf-latest-stable.zip
 
   cervantes:
     name: Cervantes
@@ -250,15 +234,12 @@ jobs:
         run: make TARGET=cervantes update
       - name: Rename for release
         run: |
-          cp koreader-cervantes-*.zip koreader-cervantes-latest-stable.zip || true
-          cp koreader-cervantes-*.targz koreader-cervantes-latest-stable.targz || true
+          cp koreader-cervantes-*.zip koreader-cervantes-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: cervantes
-          path: |
-            koreader-cervantes-latest-stable.zip
-            koreader-cervantes-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-cervantes-latest-stable.zip
 
   remarkable:
     name: reMarkable (armhf)
@@ -281,15 +262,12 @@ jobs:
         run: make TARGET=remarkable update
       - name: Rename for release
         run: |
-          cp koreader-remarkable-*.zip koreader-remarkable-latest-stable.zip || true
-          cp koreader-remarkable-*.targz koreader-remarkable-latest-stable.targz || true
+          cp koreader-remarkable-*.zip koreader-remarkable-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: remarkable
-          path: |
-            koreader-remarkable-latest-stable.zip
-            koreader-remarkable-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-remarkable-latest-stable.zip
 
   remarkable-aarch64:
     name: reMarkable (aarch64)
@@ -312,15 +290,12 @@ jobs:
         run: make TARGET=remarkable-aarch64 update
       - name: Rename for release
         run: |
-          cp koreader-remarkable-aarch64-*.zip koreader-remarkable-aarch64-latest-stable.zip || true
-          cp koreader-remarkable-aarch64-*.targz koreader-remarkable-aarch64-latest-stable.targz || true
+          cp koreader-remarkable-aarch64-*.zip koreader-remarkable-aarch64-latest-stable.zip
       - uses: actions/upload-artifact@v4
         with:
           name: remarkable-aarch64
-          path: |
-            koreader-remarkable-aarch64-latest-stable.zip
-            koreader-remarkable-aarch64-latest-stable.targz
-            koreader-*.tar.xz
+          if-no-files-found: error
+          path: koreader-remarkable-aarch64-latest-stable.zip
 
   android-arm:
     name: Android (ARM)
@@ -425,6 +400,12 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts/
+
+      - name: Convert ZIPs to OTA archives
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y p7zip-full
+          bash .github/scripts/convert-ota-assets.sh artifacts stable "$RELEASE_TAG"
 
       - name: Create OTA aliases and versioned copies
         run: |

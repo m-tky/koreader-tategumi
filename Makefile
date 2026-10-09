@@ -6,19 +6,17 @@ KOR_BASE ?= base
 
 include $(KOR_BASE)/Makefile.defs
 
-RELEASE_DATE := $(shell git show -s --format=format:"%cd" --date=short HEAD)
-# We want VERSION to carry the version of the KOReader main repo, not that of koreader-base.
-# In CI release builds the tag name is available via RELEASE_TAG; prefer it over git describe
-# because shallow clones can cause git describe to miss the annotated tag at HEAD.
+DESCRIBE := $(shell ./tools/describe.sh)
+RELEASE_DATE := $(word 2,$(DESCRIBE))
+RELEASE_EPOCH := $(word 3,$(DESCRIBE))
+# CI release builds must use the requested tag even in shallow clones.
 ifdef RELEASE_TAG
   VERSION := $(RELEASE_TAG)
 else
-  VERSION := $(shell git describe --match='v[0-9]*' HEAD)
+  VERSION := $(word 1,$(DESCRIBE))
 endif
-RELEASE_EPOCH := $(shell env TZ=UTC git log -1 --format='%cs' $(word 1,$(subst -, ,$(VERSION))))
-# Only append date if we're not on a whole version, like v2018.11
-ifneq (,$(findstring -,$(VERSION)))
-	VERSION := $(VERSION)_$(RELEASE_DATE)
+ifeq (,$(and $(VERSION),$(RELEASE_DATE),$(RELEASE_EPOCH)))
+  $(error failed to determine version)
 endif
 
 MACHINE=$(TARGET_MACHINE)

@@ -99,6 +99,12 @@ describe("Readerhighlight module", function()
             assert.spy(selection_spy).was_called()
             assert.Equals(1, #readerui.annotation.annotations)
             assert.Equals('thy', readerui.annotation.annotations[1].text)
+            assert.Equals("epubcfi(/6/10!/4/2/2[section_77306]/4/74/2,/3:28,/3:31)",
+                          readerui.annotation.annotations[1].epubcfi)
+            assert.Equals("/body[1]/DocFragment[5]/body[1]/div[1]/div[1]/div[1]/blockquote[19]/p[1]/text()[2].28",
+                          readerui.annotation.annotations[1].pos0)
+            assert.Equals("/body[1]/DocFragment[5]/body[1]/div[1]/div[1]/div[1]/blockquote[19]/p[1]/text()[2].31",
+                          readerui.annotation.annotations[1].pos1)
         end)
         it("should highlight text", function()
             highlight_text("readerhighlight_epub_text.png",
@@ -107,6 +113,12 @@ describe("Readerhighlight module", function()
             assert.spy(selection_spy).was_called()
             assert.Equals(1, #readerui.annotation.annotations)
             assert.Equals('Montagues.\nSAMPSON', readerui.annotation.annotations[1].text)
+            assert.Equals("epubcfi(/6/10!/4/2/2[section_77306]/4,/74/2/5:25,/76/2/1:7)",
+                          readerui.annotation.annotations[1].epubcfi)
+            assert.Equals("/body[1]/DocFragment[5]/body[1]/div[1]/div[1]/div[1]/blockquote[19]/p[1]/text()[3].25",
+                          readerui.annotation.annotations[1].pos0)
+            assert.Equals("/body[1]/DocFragment[5]/body[1]/div[1]/div[1]/div[1]/p[19]/strong[1]/text()[1].7",
+                          readerui.annotation.annotations[1].pos1)
         end)
         it("should response on tap gesture", function()
             local w, h = Screen:getWidth(), Screen:getHeight()
@@ -136,6 +148,14 @@ describe("Readerhighlight module", function()
                                Geom:new{ x = x_left,  y = line1_y },
                                Geom:new{ x = x_right, y = line2_y },
                                Geom:new{ x = x_mid,   y = math.floor((line1_y + line2_y) / 2) })
+            assert.spy(selection_spy).was_called()
+            local highlight = readerui.annotation.annotations[1]
+            assert.truthy(highlight.pos0)
+            assert.truthy(highlight.pos1)
+            assert.truthy(highlight.text)
+            assert.matches("^epubcfi%(", highlight.epubcfi)
+            assert.Equals(doc:getEPubCFIRangeFromXPointers(highlight.pos0, highlight.pos1),
+                          highlight.epubcfi)
         end)
     end)
 
@@ -169,6 +189,7 @@ describe("Readerhighlight module", function()
                                       Geom:new{ x = 260, y = 70 })
                 assert.Equals(1, #readerui.annotation.annotations)
                 assert.Equals('Penn', readerui.annotation.annotations[1].text)
+                assert.is_nil(readerui.annotation.annotations[1].epubcfi)
             end)
             it("should highlight text", function()
                 highlight_text("readerhighlight_pdf_layer_text.png",

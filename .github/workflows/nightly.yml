@@ -539,6 +539,11 @@ jobs:
             "$KOTASYNC" make "$package" "$(dirname "$package")/$latest_name"
           done
 
+      - name: Include legacy migration helper
+        run: |
+          mkdir -p artifacts/migration
+          cp tools/migration/otamanager.lua artifacts/migration/otamanager.lua
+
       - name: List artifacts
         run: find artifacts/ -type f | sort
 

@@ -82,21 +82,39 @@ installation and updates, whereas KUAL is a launcher UI.
 
 ### Switching from vanilla KOReader
 
-If you already have vanilla KOReader installed, you can switch to this fork without
-reinstalling from scratch:
+For legacy file-based installs using zsync, a one-time migration helper lets you
+switch through KOReader's update menu:
 
-1. Copy `frontend/ui/otamanager.lua` from this repository into
-   `<koreader-dir>/frontend/ui/otamanager.lua` on your device.
-2. Restart KOReader and go to **Menu → Update → Check for update**.
-3. KOReader will download and apply this fork's build automatically.
+1. Exit KOReader and back up your existing KOReader directory, including settings
+   and reading progress.
+2. Download the migration helper **[otamanager.lua](https://github.com/m-tky/koreader-tategumi/releases/latest/download/otamanager.lua)**
+   (also attached to v2026.10 and later releases). Alternatively, save
+   the [migration helper](https://raw.githubusercontent.com/m-tky/koreader-tategumi/master/tools/migration/otamanager.lua)
+   as `otamanager.lua`, not `otamanager.lua.txt`.
+3. Copy it to `<koreader-dir>/frontend/ui/otamanager.lua` on your device,
+   replacing the existing file.
+4. Restart KOReader and choose **Menu → Update → Check for update**, then confirm
+   the update to this fork's stable release.
 
-This shortcut only works for file-based installs that expose a writable
-`<koreader-dir>/frontend/` directory. Android APK installs, including Boox
-devices, cannot use this migration path because the application files are
-packaged inside the APK. If you installed KOReader from an APK, install this
-fork's Android APK from the release page instead. After that, this fork's GitHub
-APK builds can check for updates in-app, download the next APK, and hand it to
-Android's installer.
+The update replaces the helper with this fork's normal updater. Subsequent
+updates use the same menu. The helper ignores saved vanilla mirrors and channels
+without changing those settings. Equal version numbers still allow migration.
+
+**Updates from the legacy zsync updater have been verified on a device.**
+
+Use the **migration helper**, not the normal `frontend/ui/otamanager.lua` from this
+repository: the latter requires kotasync components missing from legacy installs.
+For kotasync-based installs, or if the helper does not work, use your device's
+installation instructions linked above to install this fork's package over the
+existing installation. Do not delete the existing `koreader` directory first.
+If you abandon migration after copying the helper, restore the backed-up original
+`otamanager.lua` to return to vanilla's updater.
+
+For Android APK installs, including Boox devices, install this fork's Android APK
+from the release page instead. Back up settings and reading progress first. If
+Android refuses to install it over the existing app, do not uninstall the existing
+app before backing up its data. After migration, this fork's GitHub APK builds can
+check for updates in-app, download the next APK, and hand it to Android's installer.
 
 ## Nightly builds
 
@@ -299,19 +317,37 @@ KUAL が導入済みなら、従来の KOReader メニューからも起動で�
 
 ### vanilla KOReader からの移行
 
-既に vanilla KOReader をインストール済みの場合、再インストールせずに
-本フォークへ切り替えられます:
+旧 zsync 方式のファイル配置型インストールでは、移行専用ファイルを使って
+KOReader の更新メニューから本フォークへ切り替えられます:
 
-1. 本リポジトリの `frontend/ui/otamanager.lua` を端末上の
-   `<koreader-dir>/frontend/ui/otamanager.lua` にコピーします。
-2. KOReader を再起動し、**メニュー → 更新 → 更新を確認** へ進みます。
-3. KOReader が本フォークのビルドを自動的にダウンロード・適用します。
+1. KOReader を終了し、設定・読書進捗を含む既存の KOReader ディレクトリを
+   バックアップします。
+2. 移行用の **[otamanager.lua](https://github.com/m-tky/koreader-tategumi/releases/latest/download/otamanager.lua)**
+   をダウンロードします（v2026.10 以降のリリースにも添付）。
+   または[移行用ファイル](https://raw.githubusercontent.com/m-tky/koreader-tategumi/master/tools/migration/otamanager.lua)
+   を `otamanager.lua` として保存してください。末尾に `.txt` を付けないでください。
+3. 端末の `<koreader-dir>/frontend/ui/otamanager.lua` にコピーして、既存ファイルを
+   上書きします。
+4. KOReader を再起動し、**メニュー → 更新 → 更新を確認** を選んで、
+   本フォークの安定版への更新を承認します。
 
-この方法が使えるのは、端末上で書き込み可能な `<koreader-dir>/frontend/`
-ディレクトリが見えているファイル配置型のインストールだけです。Boox 端末を含む
-Android APK 版は、アプリ本体が APK 内にパッケージされるため、この移行方法は
-使えません。APK からインストールしている場合は、リリースページから本フォークの
-Android APK をインストールしてください。その後は、アプリ内で更新を確認し、
+更新すると移行用ファイルも本フォークの通常 updater に置き換わります。
+以後も同じメニューから更新できます。移行時は既存の vanilla のサーバー・チャンネル
+設定を無視しますが、保存済みの設定自体は変更しません。同じバージョン番号でも移行できます。
+
+**旧 zsync 方式からの更新は実機で確認済みです。**
+
+使うのは**移行専用ファイル**です。本リポジトリの通常の `frontend/ui/otamanager.lua` は
+旧環境にない kotasync 関連コンポーネントが必要なので、代わりにコピーしないでください。
+kotasync 方式のインストールや移行用ファイルが動かない場合は、上記の端末別手順に従って
+本フォークのパッケージを上書きしてください。既存の `koreader` ディレクトリは削除しないでください。
+ファイル差し替え後に移行を取りやめる場合は、バックアップした元の `otamanager.lua` を
+戻すと vanilla の updater に戻せます。
+
+Boox 端末を含む Android APK 版では、リリースページから本フォークの Android APK を
+インストールしてください。先に設定・読書進捗をバックアップしてください。
+Android が既存アプリへの上書きを拒否する場合も、データをバックアップする前に
+既存アプリをアンインストールしないでください。移行後は、アプリ内で更新を確認し、
 次の APK をダウンロードして Android のインストーラで更新できます。
 
 ## Nightly ビルド

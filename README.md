@@ -139,9 +139,12 @@ at the cost of less testing, so it may be less stable.
 EPUBs that already contain `writing-mode: vertical-rl` in their CSS (most commercial
 Japanese novels do) render vertically automatically.
 
-For EPUBs that do not include this CSS, add the following via
-**Document (page icon) → Style tweaks → Book-specific tweak**
-(long-press to edit):
+For EPUBs that do not specify vertical writing, enable **Document → Document
+settings → Vertical reading** (saved per book). Books styled for horizontal reading
+may not lay out as expected.
+
+Alternatively, add the following via **Document (page icon) → Style tweaks →
+Book-specific tweak** (long-press to edit):
 
 ```css
 body { writing-mode: vertical-rl !important; }
@@ -371,8 +374,11 @@ Android が既存アプリへの上書きを拒否する場合も、データを
 CSS に `writing-mode: vertical-rl` が既に含まれている EPUB（市販の日本語小説の
 多くがそうです）は自動的に縦書きで表示されます。
 
-含まれていない EPUB には、**Document（文書アイコン）→ Style tweaks →
-Book-specific tweak**（長押しで編集）から以下を追加してください:
+縦書きが指定されていない EPUB は、**Document → Document settings → Vertical reading**
+で縦書きにできます（書籍ごとに保存）。横書き向けのスタイルによっては、正しく表示されない場合があります。
+
+別の方法として、**Document（文書アイコン）→ Style tweaks →
+Book-specific tweak**（長押しで編集）から以下を追加することもできます:
 
 ```css
 body { writing-mode: vertical-rl !important; }

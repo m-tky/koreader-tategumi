@@ -40,6 +40,11 @@ brackets, quotation marks, dashes, and other symbols in horizontal forms.
 **Noto Sans CJK JP** and **Noto Serif CJK JP** are suitable examples; add one
 through KOReader's font settings and select it as the document font.
 
+Keep **Font Kerning** set to **best** (the default) for vertical text. The current
+vertical rendering implementation relies on HarfBuzz's full shaping path for
+vertical glyph substitutions and positioning; **good**, **fast**, and **off** do
+not provide the required processing.
+
 ### Kindle: install with KPM
 
 On a Kindle with the Kindle Package Manager (KPM), add this fork's repository once:
@@ -276,6 +281,10 @@ Android APK 版は Android の APK インストール機能を使います。本
 これらの縦組み字形に未対応のフォントでは、括弧・引用符・ダッシュなどが横書き用の
 字形のまま表示されることがあります。**Noto Sans CJK JP** や **Noto Serif CJK JP**
 が適しています。KOReader のフォント設定から追加し、文書フォントとして選択してください。
+
+縦書きでは **Font Kerning を best（既定値）** に設定してください。現在の縦書き実装は、
+縦組み字形への置換と配置に HarfBuzz の完全なシェーピング処理を使用するため、
+**good / fast / off** では必要な処理が行われません。
 
 ### Kindle: KPM を使ったインストール
 

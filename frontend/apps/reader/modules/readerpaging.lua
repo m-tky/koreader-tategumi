@@ -90,6 +90,7 @@ function ReaderPaging:registerKeyEvents()
 end
 
 ReaderPaging.onPhysicalKeyboardConnected = ReaderPaging.registerKeyEvents
+ReaderPaging.onRegisterDPadEvents = ReaderPaging.registerKeyEvents
 
 function ReaderPaging:onReaderReady()
     self:setupTouchZones()

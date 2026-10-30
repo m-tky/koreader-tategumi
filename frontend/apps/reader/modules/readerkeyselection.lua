@@ -502,6 +502,7 @@ end
 function ReaderKeySelection:_resetIndicatorState()
     self._current_indicator_pos = nil
     self._previous_indicator_word = nil
+    self._vertical_selection_anchor_y = nil
     self._vertical_move_anchor_x = nil
     self._last_move_was_vertical = false
     self._start_indicator_highlight = false
@@ -611,6 +612,10 @@ function ReaderKeySelection:moveHighlightIndicator(args)
         return true
     end
 
+    if require("apps/reader/modules/readerkeyselection_vert").move(self, dx, dy, quick_move) then
+        return true
+    end
+
     local is_vertical_move = dx == 0 and dy ~= 0
     self._last_move_was_quick_move = quick_move
     local current_word = self._previous_indicator_word
@@ -670,6 +675,7 @@ function ReaderKeySelection:moveHighlightIndicator(args)
 end
 
 function ReaderKeySelection:pageTurnDuringSelection()
+    self._vertical_selection_anchor_y = nil
     self:clearFlashHighlight() -- delay may not have cleared it yet
     self._edge_dx, self._edge_dy = nil, nil
     self._previous_indicator_word = nil
@@ -862,6 +868,8 @@ function ReaderKeySelection:_getWordAnchorCoordinates(word)
     if not word or not word.sbox then
         return nil, nil, false
     end
+    local vertical_x, vertical_y = require("apps/reader/modules/readerkeyselection_vert").anchor(self, word)
+    if vertical_x then return vertical_x, vertical_y, false end
     local sbox = word.sbox
     -- Fallback for when the word hasn't been flagged yet
     if not word.is_split_fragment and self:_isSplitHyphenatedWord(word) then

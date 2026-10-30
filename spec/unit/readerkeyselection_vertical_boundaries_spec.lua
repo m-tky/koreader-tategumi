@@ -67,7 +67,14 @@ describe("Vertical text key selection boundaries", function()
 
     local function place(reader, xp)
         local doc, selector = reader.document, reader.keyselection
-        reader.rolling:_gotoPage(doc:getPageFromXPointer(xp))
+        local page = doc:getPageFromXPointer(xp)
+        if doc:getVisiblePageCount() == 2 then
+            -- Show both sides of a writing-mode transition without turning
+            -- the displayed spread while the cursor crosses that transition.
+            reader.rolling:_gotoPage(math.max(1, page - 1), true, true)
+        else
+            reader.rolling:_gotoPage(page)
+        end
         selector:clearOverlay()
         local y, x = doc:getScreenPositionFromXPointer(xp)
         assert.truthy(x and y)
@@ -96,12 +103,14 @@ describe("Vertical text key selection boundaries", function()
     end
 
     local mixed = '<div class="vertical"><p>天地玄黄宇宙洪荒</p></div>' ..
-        '<div class="horizontal page"><p>春夏秋冬山川草木</p><p>花鳥風月日月星辰</p></div>' ..
-        '<div class="vertical page"><p>食物栄養健康生活</p></div>'
+        '<div class="horizontal"><p>春夏秋冬山川草木</p><p>花鳥風月日月星辰</p></div>' ..
+        '<div class="vertical"><p>食物栄養健康生活</p></div>'
 
-    it("switches to horizontal movement after leaving vertical text forward", function()
+    it("switches to horizontal movement within the displayed spread forward", function()
         local reader = open(mixed)
         local doc, selector = reader.document, reader.keyselection
+        doc:setVisiblePageCount(2)
+        fastforward_ui_events()
         local first_horizontal = locate(doc, "春").start
         place(reader, doc:getPrevVisibleWordStart(first_horizontal))
         assert.is_true(mode(reader))
@@ -116,9 +125,11 @@ describe("Vertical text key selection boundaries", function()
         assert.near(before.x, selector._current_indicator_pos.x, 2)
     end)
 
-    it("switches to horizontal movement after leaving vertical text backward", function()
+    it("switches to horizontal movement within the displayed spread backward", function()
         local reader = open(mixed)
         local doc, selector = reader.document, reader.keyselection
+        doc:setVisiblePageCount(2)
+        fastforward_ui_events()
         local first_vertical = locate(doc, "食").start
         place(reader, first_vertical)
         selector:moveHighlightIndicator({ 0, -1 })
@@ -132,6 +143,8 @@ describe("Vertical text key selection boundaries", function()
     it("does not continue a quick downward move along a horizontal row", function()
         local reader = open(mixed)
         local doc, selector = reader.document, reader.keyselection
+        doc:setVisiblePageCount(2)
+        fastforward_ui_events()
         local first_horizontal = locate(doc, "春").start
         place(reader, doc:getPrevVisibleWordStart(first_horizontal))
         selector:moveHighlightIndicator({ 0, 1 })
@@ -147,6 +160,8 @@ describe("Vertical text key selection boundaries", function()
     it("does not continue a quick upward move along a horizontal row", function()
         local reader = open(mixed)
         local doc, selector = reader.document, reader.keyselection
+        doc:setVisiblePageCount(2)
+        fastforward_ui_events()
         local first_vertical = locate(doc, "食").start
         place(reader, first_vertical)
         selector:moveHighlightIndicator({ 0, -1 })
@@ -265,7 +280,7 @@ describe("Vertical text key selection boundaries", function()
 
     for _, case in ipairs({ {false, "text"}, {false, "column"}, {true, "text"}, {true, "column"} }) do
         local quick, axis = unpack(case)
-        it("visits the next page's fragment of the same word (" .. axis .. ", quick=" .. tostring(quick) .. ")", function()
+        it("stops at the page end even when a word continues (" .. axis .. ", quick=" .. tostring(quick) .. ")", function()
             local token = ("supercalifragilisticexpialidocious"):rep(40)
             local reader = open('<div class="vertical"><p>天地 ' .. token .. ' 宇宙</p></div>')
             local doc, selector = reader.document, reader.keyselection
@@ -274,12 +289,15 @@ describe("Vertical text key selection boundaries", function()
             assert.is_true(doc:getPageFromXPointer(word.pos1) > page, "fixture must split the word across pages")
             local b = word.segments[#word.segments]
             selector:_setIndicatorRect(indicatorRect(b))
-            selector:moveHighlightIndicator({ axis == "column" and -1 or 0, axis == "text" and 1 or 0, quick })
-            assert.equals(page + 1, doc:getCurrentPage(), "must not jump over pages containing the rest of the word")
+            for _ = 1, 5 do
+                selector:moveHighlightIndicator({ axis == "column" and -1 or 0, axis == "text" and 1 or 0, quick })
+            end
+            assert.equals(page, doc:getCurrentPage(), "a split word must not cause an automatic page turn")
             assert.equals(word.pos0, selector._previous_indicator_word.pos0)
+            assert.near(b.x + b.w / 2, selector._current_indicator_pos.x + 2, 2)
         end)
 
-        it("visits the preceding page's fragment of the same word (" .. axis .. ", quick=" .. tostring(quick) .. ")", function()
+        it("stops at the page start even when a word began earlier (" .. axis .. ", quick=" .. tostring(quick) .. ")", function()
             local token = ("supercalifragilisticexpialidocious"):rep(40)
             local reader = open('<div class="vertical"><p>天地 ' .. token .. ' 宇宙</p></div>')
             local doc, selector = reader.document, reader.keyselection
@@ -293,10 +311,12 @@ describe("Vertical text key selection boundaries", function()
             local b = word.segments[1]
             word.sbox = b
             selector:_setIndicatorRect(indicatorRect(b))
-            selector:moveHighlightIndicator({ axis == "column" and 1 or 0, axis == "text" and -1 or 0, quick })
-            assert.equals(first_page, doc:getCurrentPage())
-            assert.equals(word.pos0, selector._previous_indicator_word.pos0,
-                "must not skip the word's fragments on the previous page")
+            for _ = 1, 5 do
+                selector:moveHighlightIndicator({ axis == "column" and 1 or 0, axis == "text" and -1 or 0, quick })
+            end
+            assert.equals(first_page + 1, doc:getCurrentPage())
+            assert.equals(word.pos0, selector._previous_indicator_word.pos0)
+            assert.near(b.x + b.w / 2, selector._current_indicator_pos.x + 2, 2)
         end)
     end
 

@@ -58,6 +58,13 @@ describe("Vertical text key selection boundaries", function()
         return hits[1]
     end
 
+    local function indicatorRect(box)
+        -- Fixed pixels are intentional: these tests assert native screen geometry.
+        local side = 4
+        return Geom:new{ x = box.x + (box.w - side) / 2, y = box.y + (box.h - side) / 2,
+            w = side, h = side }
+    end
+
     local function place(reader, xp)
         local doc, selector = reader.document, reader.keyselection
         reader.rolling:_gotoPage(doc:getPageFromXPointer(xp))
@@ -69,7 +76,7 @@ describe("Vertical text key selection boundaries", function()
         local boxes = doc:getScreenBoxesFromPositions(word.pos0, word.pos1, true)
         word.segments = boxes
         local b = boxes[1]
-        local rect = Geom:new{ x = b.x + b.w / 2 - 2, y = b.y + b.h / 2 - 2, w = 4, h = 4 }
+        local rect = indicatorRect(b)
         if selector:isActive() then
             selector:_setIndicatorRect(rect)
         else
@@ -206,7 +213,7 @@ describe("Vertical text key selection boundaries", function()
         local word = place(reader, locate(doc, token).start)
         assert.is_true(#word.segments > 1, "fixture must span multiple columns")
         local b = word.segments[2]
-        selector:_setIndicatorRect(Geom:new{ x = b.x + b.w / 2 - 2, y = b.y + b.h / 2 - 2, w = 4, h = 4 })
+        selector:_setIndicatorRect(indicatorRect(b))
         selector:moveHighlightIndicator({ 0, -1 })
         assert.equals(word.pos0, selector._previous_indicator_word.pos0,
             "Up must visit the previous fragment before leaving the word")
@@ -222,8 +229,7 @@ describe("Vertical text key selection boundaries", function()
             local word = place(reader, locate(doc, token).start)
             assert.is_true(#word.segments >= 5, "fixture must provide at least five fragments")
             local origin = word.segments[direction > 0 and 1 or 5]
-            selector:_setIndicatorRect(Geom:new{ x = origin.x + origin.w / 2 - 2,
-                y = origin.y + origin.h / 2 - 2, w = 4, h = 4 })
+            selector:_setIndicatorRect(indicatorRect(origin))
             selector:moveHighlightIndicator({ 0, direction, true })
             assert.equals(word.pos0, selector._previous_indicator_word.pos0)
             local target = word.segments[direction > 0 and 5 or 1]
@@ -267,7 +273,7 @@ describe("Vertical text key selection boundaries", function()
             local page = doc:getCurrentPage()
             assert.is_true(doc:getPageFromXPointer(word.pos1) > page, "fixture must split the word across pages")
             local b = word.segments[#word.segments]
-            selector:_setIndicatorRect(Geom:new{ x = b.x + b.w / 2 - 2, y = b.y + b.h / 2 - 2, w = 4, h = 4 })
+            selector:_setIndicatorRect(indicatorRect(b))
             selector:moveHighlightIndicator({ axis == "column" and -1 or 0, axis == "text" and 1 or 0, quick })
             assert.equals(page + 1, doc:getCurrentPage(), "must not jump over pages containing the rest of the word")
             assert.equals(word.pos0, selector._previous_indicator_word.pos0)
@@ -286,7 +292,7 @@ describe("Vertical text key selection boundaries", function()
             assert.truthy(word.segments and word.segments[1])
             local b = word.segments[1]
             word.sbox = b
-            selector:_setIndicatorRect(Geom:new{ x = b.x + b.w / 2 - 2, y = b.y + b.h / 2 - 2, w = 4, h = 4 })
+            selector:_setIndicatorRect(indicatorRect(b))
             selector:moveHighlightIndicator({ axis == "column" and 1 or 0, axis == "text" and -1 or 0, quick })
             assert.equals(first_page, doc:getCurrentPage())
             assert.equals(word.pos0, selector._previous_indicator_word.pos0,
@@ -319,7 +325,7 @@ describe("Vertical text key selection boundaries", function()
         assert.is_true(#word.segments > 2)
         local b = word.segments[2]
         local selector = reader.keyselection
-        selector:_setIndicatorRect(Geom:new{ x = b.x + b.w / 2 - 2, y = b.y + b.h / 2 - 2, w = 4, h = 4 })
+        selector:_setIndicatorRect(indicatorRect(b))
         selector:stopHighlightIndicator(true)
         assert.is_true(selector:startHighlightIndicator())
         assert.near(b.x + b.w / 2, selector._current_indicator_pos.x + 2, 2)

@@ -409,7 +409,10 @@ describe("Vertical text D-pad selection", function()
             assert.truthy(boxes and boxes[1])
             selector._previous_indicator_word = { pos0 = xp, pos1 = ending, sbox = boxes[1], segments = boxes }
             local b = boxes[1]
-            selector:_setIndicatorRect(Geom:new{ x = b.x + b.w / 2 - 2, y = b.y + b.h / 2 - 2, w = 4, h = 4 })
+            -- Fixed pixels are intentional for native screen-coordinate assertions.
+            local side = 4
+            selector:_setIndicatorRect(Geom:new{ x = b.x + (b.w - side) / 2, y = b.y + (b.h - side) / 2,
+                w = side, h = side })
             selector._edge_dx, selector._edge_dy = nil, nil
             selector._vertical_selection_anchor_y = nil
         end

@@ -10,9 +10,9 @@ local function sameColumn(a, b)
     return math.min(a.x + a.w, b.x + b.w) - math.max(a.x, b.x) > math.min(a.w, b.w) / 2
 end
 
-local function wordAt(doc, xp, ending)
+local function wordAt(doc, xp)
     if not xp then return end
-    ending = ending or doc:getNextVisibleWordEnd(xp)
+    local ending = doc:getNextVisibleWordEnd(xp)
     if not ending then return end
     if not doc:isXPointerInCurrentPage(xp) then
         -- A word's head may be on a previous page while its tail is visible.
@@ -46,11 +46,11 @@ end
 -- Walk only in the requested logical direction: finish the current column,
 -- find the adjacent one, then choose its closest word to the retained Y. Stop
 -- at the following column instead of reconstructing every word on the page.
--- The off-page pointer is returned too, so page crossing need not scan again.
-local function columnWord(doc, origin, box, direction, anchor_y, entry_box)
+-- Stop at the displayed page boundary, like the horizontal selector.
+local function columnWord(doc, origin, box, direction, anchor_y)
     local cx = center(box)
     local logical_dir = -direction
-    local target_box = entry_box
+    local target_box
     local best, best_box, best_distance
     local word, seen = origin, {}
     while word and not seen[word.pos0] do
@@ -76,58 +76,11 @@ local function columnWord(doc, origin, box, direction, anchor_y, entry_box)
         end
         local xp = adjacentPointer(doc, word, logical_dir)
         if not xp or not doc:isXPointerInCurrentPage(xp) then
-            return best, best_box, xp, word
+            return best, best_box
         end
         word = wordAt(doc, xp)
     end
     return best, best_box
-end
-
-local function continuationPage(doc, word, direction)
-    if not doc.getCurrentPage then return end
-    local page = doc:getCurrentPage()
-    local count = doc.getVisiblePageCount and doc:getVisiblePageCount() or 1
-    if direction > 0 then
-        -- An end pointer may lie exactly at the following page's start.
-        local last = doc.getPrevVisibleChar and doc:getPrevVisibleChar(word.pos1) or word.pos1
-        if last and doc:getPageFromXPointer(last) > page + count - 1 then
-            return doc.getNextPage and doc:getNextPage(page + count - 1) or page + count
-        end
-    elseif doc:getPageFromXPointer(word.pos0) < page then
-        return doc.getPrevPage and doc:getPrevPage(page) or page - 1
-    end
-end
-
-local function crossPage(selector, word, xp, dx, dy, anchor_y)
-    local doc = selector.ui.document
-    local rolling = selector.ui.rolling
-    if not rolling or selector.view.view_mode ~= "page" then return end
-    local direction = dx ~= 0 and -dx or dy
-    local continuation = continuationPage(doc, word, direction)
-    if not continuation and (not xp or doc:isXPointerInCurrentPage(xp)) then return end
-    local page = continuation or doc:getPageFromXPointer(xp)
-    if not page or page < 1 or page > doc:getPageCount() then return end
-    local old_page = doc:getCurrentPage()
-    selector:clearOverlay()
-    -- Do not use onGotoViewRel: its generic selector relocation would discard
-    -- the retained height and interrupt an active hold selection.
-    rolling:_gotoPage(page)
-    local candidate = continuation and wordAt(doc, word.pos0, word.pos1) or wordAt(doc, xp)
-    if not candidate then
-        -- Do not leave the user on another page without a usable cursor.
-        rolling:_gotoPage(old_page)
-        return
-    end
-    local box = direction > 0 and candidate.segments[1] or candidate.segments[#candidate.segments]
-    if dx ~= 0 then
-        candidate, box = columnWord(doc, candidate, box, dx, anchor_y, box)
-        if not candidate then
-            rolling:_gotoPage(old_page)
-            return
-        end
-    end
-    rolling.xpointer = doc:getXPointer()
-    return candidate, box
 end
 
 -- Shared by startup and generic page-turn relocation. A vertical word's
@@ -195,15 +148,14 @@ function VerticalSelection.move(selector, dx, dy, quick)
     while true do
         -- Unlike inline quick movement (four words), cross-column quick
         -- movement mirrors horizontal quick line movement: one fifth of the
-        -- viewport. Accumulate distance across page boundaries as well.
+        -- viewport, limited to the currently displayed page.
         local old_x = center(box)
-        local old_page = doc.getCurrentPage and doc:getCurrentPage() or 0
-        local key = table.concat({ old_page, word.pos0, box.x, box.y }, ":")
+        local key = table.concat({ word.pos0, box.x, box.y }, ":")
         if seen[key] then break end
         seen[key] = true
-        local candidate, candidate_box, next_xp, edge_word
+        local candidate, candidate_box
         if dx ~= 0 then
-            candidate, candidate_box, next_xp, edge_word = columnWord(doc, word, box, dx, selector._vertical_selection_anchor_y)
+            candidate, candidate_box = columnWord(doc, word, box, dx, selector._vertical_selection_anchor_y)
         else
             -- Visit physical fragments before leaving the logical word.
             for i, segment in ipairs(word.segments or { word.sbox }) do
@@ -213,27 +165,18 @@ function VerticalSelection.move(selector, dx, dy, quick)
                     break
                 end
             end
-            if not candidate and not continuationPage(doc, word, dy) then
-                next_xp = adjacentPointer(doc, word, dy)
-                candidate = wordAt(doc, next_xp)
+            if not candidate then
+                candidate = wordAt(doc, adjacentPointer(doc, word, dy))
                 if candidate then
                     candidate_box = dy > 0 and candidate.segments[1] or candidate.segments[#candidate.segments]
                 end
             end
         end
-        if not candidate then
-            candidate, candidate_box = crossPage(selector, edge_word or word, next_xp, dx, dy, selector._vertical_selection_anchor_y)
-        end
         if not candidate then break end
         word, box, moved = candidate, candidate_box, true
         steps = steps + 1
         local new_x = center(box)
-        local new_page = doc.getCurrentPage and doc:getCurrentPage() or 0
-        if old_page ~= new_page then
-            distance = distance + (dx < 0 and (old_x + width - new_x) or (width - old_x + new_x))
-        else
-            distance = distance + math.abs(new_x - old_x)
-        end
+        distance = distance + math.abs(new_x - old_x)
         -- A quick move must not apply vertical logical traversal to a
         -- horizontal row. The next key event uses the horizontal selector.
         local cx, cy = center(box)

@@ -175,60 +175,33 @@ describe("Vertical text D-pad selection", function()
         assert.is_nil(s._vertical_selection_anchor_y)
     end)
 
-    it("crosses pages down and up in logical order", function()
-        local s, place = paginatedFixture()
-        place(7)
-        VerticalSelection.move(s, 0, 1)
-        assert.equals(2, s.ui.document:getCurrentPage())
-        assert.equals(8, s._previous_indicator_word.pos0)
-        assert.equals(8, s.ui.rolling.xpointer)
-        VerticalSelection.move(s, 0, -1)
-        assert.equals(1, s.ui.document:getCurrentPage())
-        assert.equals(7, s._previous_indicator_word.pos0)
-        assert.spy(s.clearOverlay).was_called(2)
-    end)
+    for _, quick in ipairs({ false, true }) do
+        it("stops repeated arrow input at every page edge (quick=" .. tostring(quick) .. ")", function()
+            for _, case in ipairs({ {1, 7, 0, 1}, {1, 6, -1, 0}, {2, 8, 0, -1}, {2, 9, 1, 0} }) do
+                local page, xp, dx, dy = unpack(case)
+                local s, place = paginatedFixture()
+                s.ui.rolling:_gotoPage(page)
+                place(xp)
+                local turn = spy.on(s.ui.rolling, "_gotoPage")
+                for _ = 1, 5 do VerticalSelection.move(s, dx, dy, quick) end
+                assert.equals(page, s.ui.document:getCurrentPage())
+                assert.equals(xp, s._previous_indicator_word.pos0)
+                assert.spy(turn).was_not_called()
+                assert.spy(s.clearOverlay).was_not_called()
+            end
+        end)
+    end
 
-    it("crosses column boundaries at the retained height in both directions", function()
-        local s, place = paginatedFixture()
-        place(6)
-        VerticalSelection.move(s, -1, 0)
-        assert.equals(2, s.ui.document:getCurrentPage())
-        assert.equals(9, s._previous_indicator_word.pos0)
-        assert.equals(60, s._vertical_selection_anchor_y)
-        VerticalSelection.move(s, 1, 0)
-        assert.equals(1, s.ui.document:getCurrentPage())
-        assert.equals(6, s._previous_indicator_word.pos0)
-    end)
-
-    it("does not rescan the old page or enumerate the new page when crossing", function()
+    it("stops searching at the current page without fetching the next page", function()
         local s, place = paginatedFixture()
         place(6)
         local geometry = spy.on(s.ui.document, "getScreenBoxesFromPositions")
         local text = spy.on(s.ui.document, "getTextFromXPointers")
         VerticalSelection.move(s, -1, 0)
-        assert.equals(2, s.ui.document:getCurrentPage())
-        assert.equals(9, s._previous_indicator_word.pos0)
-        -- One remaining word on the old page, the three entry-column words,
-        -- and one word detecting the following column.
-        assert.spy(geometry).was_called(5)
-        assert.spy(text).was_called(1)
-    end)
-
-    it("retains height across a short page-entry column", function()
-        local s, place = paginatedFixture()
-        place(6)
-        local doc = s.ui.document
-        local original = doc.getScreenBoxesFromPositions
-        function doc:getScreenBoxesFromPositions(xp)
-            if xp == 9 or xp == 10 then return { { x = 100, y = 10, w = 20, h = 20 } } end
-            return original(self, xp)
-        end
-        VerticalSelection.move(s, -1, 0)
-        assert.equals(2, doc:getCurrentPage())
-        assert.equals(20, s._current_indicator_pos.y + 2)
-        VerticalSelection.move(s, -1, 0)
-        VerticalSelection.move(s, -1, 0)
-        assert.equals(13, s._previous_indicator_word.pos0)
+        assert.equals(1, s.ui.document:getCurrentPage())
+        assert.equals(6, s._previous_indicator_word.pos0)
+        assert.spy(geometry).was_called(1)
+        assert.spy(text).was_not_called()
     end)
 
     it("stops at the book boundaries in all four directions", function()
@@ -246,25 +219,22 @@ describe("Vertical text D-pad selection", function()
         assert.equals(14, s._previous_indicator_word.pos0)
     end)
 
-    it("takes four logical steps across pages in either direction", function()
-        local s, place = paginatedFixture()
-        place(7)
-        VerticalSelection.move(s, 0, 1, true)
-        assert.equals(2, s.ui.document:getCurrentPage())
-        assert.equals(11, s._previous_indicator_word.pos0)
-        VerticalSelection.move(s, 0, -1, true)
-        assert.equals(1, s.ui.document:getCurrentPage())
-        assert.equals(7, s._previous_indicator_word.pos0)
-    end)
-
-    it("crosses pages during a viewport-based column jump while retaining height", function()
+    it("limits a four-step inline jump to the displayed page", function()
         local s, place = paginatedFixture()
         place(6)
-        VerticalSelection.move(s, -1, 0, true)
+        VerticalSelection.move(s, 0, 1, true)
+        assert.equals(1, s.ui.document:getCurrentPage())
+        assert.equals(7, s._previous_indicator_word.pos0)
+        s.ui.rolling:_gotoPage(2)
+        place(9)
+        VerticalSelection.move(s, 0, -1, true)
         assert.equals(2, s.ui.document:getCurrentPage())
-        assert.equals(9, s._previous_indicator_word.pos0)
-        assert.equals(60, s._vertical_selection_anchor_y)
-        VerticalSelection.move(s, 1, 0, true)
+        assert.equals(8, s._previous_indicator_word.pos0)
+    end)
+
+    it("limits a viewport-based column jump to the displayed page", function()
+        local s = paginatedFixture()
+        VerticalSelection.move(s, -1, 0, true)
         assert.equals(1, s.ui.document:getCurrentPage())
         assert.equals(6, s._previous_indicator_word.pos0)
         assert.equals(60, s._vertical_selection_anchor_y)
@@ -301,27 +271,28 @@ describe("Vertical text D-pad selection", function()
         assert.equals(14, s._previous_indicator_word.pos0)
     end)
 
-    it("extends an active hold once to the final quick-move endpoint", function()
+    it("extends an active hold once to the final on-page quick-move endpoint", function()
         local s, place = paginatedFixture()
-        place(7)
+        place(6)
         s._start_indicator_highlight = true
         s.ui.highlight = { onHoldPan = spy.new(function() end) }
         function s:_createHighlightGesture(kind) return { kind = kind } end
         VerticalSelection.move(s, 0, 1, true)
-        assert.equals(11, s._previous_indicator_word.pos0)
+        assert.equals(7, s._previous_indicator_word.pos0)
         assert.is_true(s._start_indicator_highlight)
         assert.spy(s.ui.highlight.onHoldPan).was_called(1)
     end)
 
-    it("preserves an active hold when crossing pages", function()
+    it("keeps an active hold unchanged when blocked at a page edge", function()
         local s, place = paginatedFixture()
         place(7)
         s._start_indicator_highlight = true
         s.ui.highlight = { onHoldPan = spy.new(function() end) }
         function s:_createHighlightGesture(kind) return { kind = kind } end
         VerticalSelection.move(s, 0, 1)
+        assert.equals(1, s.ui.document:getCurrentPage())
         assert.is_true(s._start_indicator_highlight)
-        assert.spy(s.ui.highlight.onHoldPan).was_called(1)
+        assert.spy(s.ui.highlight.onHoldPan).was_not_called()
     end)
 
     it("does not reverse direction when the engine returns no next pointer", function()
@@ -416,57 +387,26 @@ describe("Vertical text D-pad selection", function()
             selector._edge_dx, selector._edge_dy = nil, nil
             selector._vertical_selection_anchor_y = nil
         end
-        place(last)
-        selector:moveHighlightIndicator({ 0, 1 })
-        assert.equals(second_page, doc:getCurrentPage())
-        assert.equals(second, selector._previous_indicator_word.pos0)
-        selector:moveHighlightIndicator({ 0, -1 })
-        assert.equals(first_page, doc:getCurrentPage())
-        assert.equals(last, selector._previous_indicator_word.pos0)
-        local original_y = selector._current_indicator_pos.y
-        selector:moveHighlightIndicator({ -1, 0 })
-        assert.equals(second_page, doc:getCurrentPage())
-        selector:moveHighlightIndicator({ 1, 0 })
-        assert.equals(first_page, doc:getCurrentPage())
-        assert.near(original_y, selector._current_indicator_pos.y, 2)
+        for _, quick in ipairs({ false, true }) do
+            for _, case in ipairs({ {last, first_page, -1, 0}, {last, first_page, 0, 1},
+                    {second, second_page, 1, 0}, {second, second_page, 0, -1} }) do
+                local xp, page, dx, dy = unpack(case)
+                place(xp)
+                for _ = 1, 5 do selector:moveHighlightIndicator({ dx, dy, quick }) end
+                assert.equals(page, doc:getCurrentPage())
+                assert.equals(xp, selector._previous_indicator_word.pos0)
+            end
+        end
 
-        -- The selection anchor must remain on the original page even though
-        -- its old screen coordinates now refer to text on the next page.
         place(last)
         selector:highlightPress(true)
         local anchor = reader.highlight.selected_text_start_xpointer
+        local selected = reader.highlight.selected_text.text
         assert.truthy(anchor)
         selector:moveHighlightIndicator({ 0, 1 })
-        assert.equals(second_page, doc:getCurrentPage())
-        assert.equals(anchor, reader.highlight.selected_text.pos0)
-        assert.is_true(reader.highlight.selected_text.text:find("食", 1, true) ~= nil)
-        assert.equals(1, doc:compareXPointers(anchor, reader.highlight.selected_text.pos1))
-
-        reader.highlight:clear()
-        selector._start_indicator_highlight = nil
-        place(second)
-        selector:highlightPress(true)
-        local original_end = reader.highlight.selected_text_start_word_end_xpointer
-        selector:moveHighlightIndicator({ 0, -1 })
+        selector:moveHighlightIndicator({ -1, 0, true })
         assert.equals(first_page, doc:getCurrentPage())
-        assert.equals(original_end, reader.highlight.selected_text.pos1)
-        assert.is_true(reader.highlight.selected_text.text:find("食", 1, true) ~= nil)
-        assert.equals(1, doc:compareXPointers(reader.highlight.selected_text.pos0, second))
-
-        reader.highlight:clear()
-        selector._start_indicator_highlight = nil
-        place(last)
-        selector:highlightPress(true)
-        anchor = reader.highlight.selected_text_start_xpointer
-        local expected = last
-        for _ = 1, 4 do expected = doc:getNextVisibleWordStart(expected) end
-        selector:moveHighlightIndicator({ 0, 1, true })
-        assert.equals(second_page, doc:getCurrentPage())
-        assert.equals(expected, selector._previous_indicator_word.pos0)
         assert.equals(anchor, reader.highlight.selected_text.pos0)
-        assert.is_true(reader.highlight.selected_text.text:find("食", 1, true) ~= nil)
-        selector:moveHighlightIndicator({ 0, -1, true })
-        assert.equals(first_page, doc:getCurrentPage())
-        assert.equals(last, selector._previous_indicator_word.pos0)
+        assert.equals(selected, reader.highlight.selected_text.text)
     end)
 end)

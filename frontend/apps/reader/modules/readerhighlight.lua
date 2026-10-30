@@ -2048,8 +2048,8 @@ function ReaderHighlight:onHoldPan(_, ges)
         end
     end
 
-    -- Vertical-rl multi-page corner-scroll or D-pad navigation: after a
-    -- discrete _gotoPage jump, the original press's hold_pos no
+    -- Vertical-rl multi-page corner-scroll: after a discrete _gotoPage jump
+    -- (see the single-page branch above), the original press's hold_pos no
     -- longer maps to its source xpointer — it was on the now-invisible
     -- previous page.  The getTextFromPositions call above therefore returned
     -- a range bounded by current-page positions only, losing the multi-page
@@ -2060,9 +2060,8 @@ function ReaderHighlight:onHoldPan(_, ges)
     -- two results, so its pos1 may belong to the stale hold_pos rather than to
     -- the current finger position.  Using that ordered pos1 made it impossible
     -- to shorten the selection beyond that stale position on the new page.
-    if is_vertical and self.ui.rolling and self.selected_text_start_xpointer
-            and (self.restore_page_mode_func
-                or not self.ui.document:isXPointerInCurrentPage(self.selected_text_start_xpointer)) then
+    if is_vertical and self.ui.rolling and self.restore_page_mode_func
+            and self.selected_text_start_xpointer then
         local sx = self.selected_text_start_xpointer
         local finger_word = self.ui.document:getWordFromPosition(self.holdpan_pos, true)
         if finger_word and finger_word.pos0 and finger_word.pos1 then

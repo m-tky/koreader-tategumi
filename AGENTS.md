@@ -64,6 +64,14 @@ The frontend runs on LuaJIT; native components use C/C++ (C11/C++17 toolchains).
 
 This is a nested submodule chain: top-level KOReader → `base` (koreader-base) → `base/thirdparty/kpvcrlib/crengine` (crengine). Do not publish a parent pointer to a child commit unavailable from the child repository's default branch; CI fetches submodules by SHA. For C++ changes, use `scripts/push-chain.sh` to preview or push the chain; its `--dry-run` may still fetch remote refs.
 
+## Upstream Sync Policy
+
+- Judge sync completeness against the submodule commits pinned by upstream KOReader, not against every submodule's latest `master`. A commit-count lag alone is not a missed sync.
+- For Android launcher, translations (`l10n`), and fonts, follow upstream KOReader's pins rather than independently advancing to their latest branches.
+- Review new upstream CRengine changes for relevance to vertical rendering. Early integration is optional and requires the relevant regression tests; otherwise, handle them in the next sync.
+- Integrate base with a verified CRengine pin, then propagate the published base commit to the parent repository. Verify the full child-to-parent chain: syncing a child repository does not automatically update its parent's pin.
+- Audit upstream ancestry, parent gitlinks, and open sync issues/PRs. A green sync workflow may only mean that a conflict issue was reported successfully. Close stale blocker issues only after verifying that their resolutions reached the relevant default branches and parent pins.
+
 ## Testing & QA
 
 Frontend and base unit tests are Lua specs using Busted, normally scheduled through Meson by the test runner. Put frontend specs under `spec/unit/`; use shared initialization/helpers and fixtures rather than ad-hoc setup. Prefer focused coverage of consumer-visible behavior and use the relevant existing vertical regression specs when changing layout, glyph shaping, coordinates, ruby, or image wrapping.

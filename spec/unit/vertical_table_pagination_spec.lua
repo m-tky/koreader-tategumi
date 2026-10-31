@@ -25,27 +25,16 @@ body { writing-mode: vertical-rl; font-size: 24px; line-height: 1; }
 table { border-collapse: collapse; margin: 0; }
 td { width: 5em; height: 5em; padding: 0; border: 1px solid; }
 </style></head><body><table>
-<tr><td rowspan="12">標</td><td>ROW_01</td></tr>
-<tr><td>ROW_02</td></tr>
-<tr><td>ROW_03</td></tr>
-<tr><td>ROW_04</td></tr>
-<tr><td>ROW_05</td></tr>
-<tr><td>ROW_06</td></tr>
-<tr><td>ROW_07</td></tr>
-<tr><td>ROW_08</td></tr>
-<tr><td>ROW_09</td></tr>
-<tr><td>ROW_10</td></tr>
-<tr><td>ROW_11</td></tr>
-<tr><td>ROW_12</td></tr>
-<tr><td>ROW_13</td><td>ROW_14</td></tr>
-<tr><td>ROW_15</td><td>ROW_16</td></tr>
-<tr><td>ROW_25</td><td>ROW_26</td></tr>
-<tr><td>ROW_27</td><td>ROW_28</td></tr>
-<tr><td>ROW_29</td><td>ROW_30</td></tr>
-<tr><td>ROW_31</td><td>ROW_32</td></tr>
-<tr><td>ROW_33</td><td>ROW_34</td></tr>
-<tr><td>ROW_35</td><td>ROW_36</td></tr>
-</table></body></html>]])
+<tr><td rowspan="12">標</td><td>01</td></tr>]])
+        for row = 2, 12 do
+            f:write(string.format("<tr><td>%02d</td></tr>", row))
+        end
+        -- Continue past the first page; the original 20-row table fitted on
+        -- one page and never exercised pagination.
+        for row = 13, 59, 2 do
+            f:write(string.format("<tr><td>%02d</td><td>%02d</td></tr>", row, row + 1))
+        end
+        f:write("</table></body></html>")
         f:close()
     end
 
@@ -74,23 +63,32 @@ td { width: 5em; height: 5em; padding: 0; border: 1px solid; }
         UIManager:show(readerui)
         fastforward_ui_events()
         local doc = readerui.document
-        local sentinel = {}
-        local page_boxes = {}
-        local words = collect_words(doc)
-        local collected_boxes = {}
-        for _, item in pairs(words) do
-            collected_boxes[#collected_boxes + 1] = item.sbox
-            if item.text == "標" then
-                sentinel[#sentinel + 1] = item.sbox
+        doc:setVisiblePageCount(1)
+        doc:setFontSize(40)
+        readerui.rolling:onUpdatePos()
+        fastforward_ui_events()
+        local page_count = doc:getPageCount()
+        assert.is_true(page_count > 1, "fixture must exercise table pagination")
+        local sentinel_count = 0
+        local row_counts = {}
+        local content_pages = 0
+        for page = 1, page_count do
+            readerui.rolling:onGotoPage(page)
+            fastforward_ui_events()
+            local boxes = {}
+            local has_labels = false
+            for _, item in pairs(collect_words(doc)) do
+                boxes[#boxes + 1] = item.sbox
+                if item.text == "標" then
+                    sentinel_count = sentinel_count + 1
+                elseif item.text:match("^%d%d$") then
+                    row_counts[item.text] = (row_counts[item.text] or 0) + 1
+                    has_labels = true
+                end
             end
-        end
-        page_boxes[#page_boxes + 1] = collected_boxes
-
-        assert.is_true(#sentinel >= 1, "rowspan cell was not reachable in the table layout")
-
-        -- Distinct table words must not occupy the same rectangle after a
-        -- table is laid out.  Ignore tiny edge contact from glyph metrics.
-        for _, boxes in ipairs(page_boxes) do
+            if has_labels then content_pages = content_pages + 1 end
+            -- Distinct table words must not occupy the same rectangle.
+            -- Ignore tiny edge contact from glyph metrics.
             for i = 1, #boxes do
                 for j = i + 1, #boxes do
                     local a, b = boxes[i], boxes[j]
@@ -104,9 +102,17 @@ td { width: 5em; height: 5em; padding: 0; border: 1px solid; }
                 end
             end
         end
+        assert.is_true(content_pages >= 2, "table labels must occupy at least two pages")
+        assert.are.equal(1, sentinel_count, "rowspan word must appear on exactly one page")
+        for row = 1, 60 do
+            local text = string.format("%02d", row)
+            assert.are.equal(1, row_counts[text], text .. " must appear exactly once")
+        end
     end)
 
     teardown(function()
         if readerui then readerui:onClose() end
+        UIManager:quit()
+        os.remove(path)
     end)
 end)

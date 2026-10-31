@@ -1,139 +1,89 @@
---[[--
-Vertical-rl: Latin ruby inline box uses horizontal advance, not TTB advance.
-
-In vertical-rl, Latin words (e.g. "Nachbild", "Geschehen") are rendered as
-rotated blocks whose visual column depth equals their horizontal advance
-(≈ 3–4 em), NOT the TTB-based estimate (char_count × font_size ≈ 8–9 em).
-
-BUG: before the fix, measureText() used fmt.getWidth() after
-renderBlockElement(), which returned the TTB-based depth.  This created a
-large blank gap (≈ render_w − horiz_advance) in the column after each Latin
-ruby group.
-
-FIX: collect the horizontal advance of each base-text glyph via
-base_font->getCharWidth() and use max(base_horiz_advance, annot_depth) as
-the inline-box advance (o.width / letter_spacing).
-
-DETECTION: ltext_vert_ruby_adv_diff_total accumulates (render_w − advance)
-for every vertical ruby inline box where render_w > advance.  A positive
-total proves that Latin content was detected and the narrower horizontal
-advance was substituted.  Under the old code advance ≈ render_w so the
-diff is zero.
-
-Run via:
-  ./kodev test front -f "Vertical text"
---]]
-
-local lfs = require("libs/libkoreader-lfs")
-
+-- Latin ruby must reserve its visible inline depth, not one em per Latin
+-- character. Hidden <rp> fallback text must not change the following glyph's
+-- position. Compare against plain text and an otherwise identical ruby.
 describe("Vertical text: Latin ruby uses horizontal advance #latin_ruby_advance", function()
-    -- This EPUB contains <ruby>Nachbild<rt>ナハビルド</rt></ruby> etc. —
-    -- proper ruby markup with Latin base text.
-    local epub_path = "spec/front/unit/data/fixtures/vertical_text/ruby_latin_base.epub"
-    if not lfs.attributes(epub_path) then
-        epub_path = nil
-    end
-
     local DocumentRegistry, ReaderUI, Screen, UIManager
-    local readerui, doc
+    local readerui, path
 
     setup(function()
         require("commonrequire")
         disable_plugins()
         require("document/canvascontext"):init(require("device"))
         DocumentRegistry = require("document/documentregistry")
-        ReaderUI         = require("apps/reader/readerui")
-        Screen           = require("device").screen
-        UIManager        = require("ui/uimanager")
+        ReaderUI = require("apps/reader/readerui")
+        Screen = require("device").screen
+        UIManager = require("ui/uimanager")
     end)
 
     before_each(function()
-        if not epub_path then return end
-        readerui = ReaderUI:new{
-            dimen = Screen:getSize(),
-            document = DocumentRegistry:openDocument(epub_path),
-        }
+        path = os.tmpname()
+        os.remove(path)
+        path = path .. ".xhtml"
+        local f = assert(io.open(path, "wb"))
+        f:write([[<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ja"><head><style>
+html, body { margin: 0; padding: 0; writing-mode: vertical-rl; }
+p { margin: 0; text-align: left; font-family: "Noto Sans CJK SC"; }
+rt { font-size: 50%; }
+</style></head><body>
+<p>甲Nachbild乙</p>
+<p>甲<ruby>Nachbild<rt>ナハビルド</rt></ruby>丙</p>
+<p>甲<ruby>Nachbild<rp>（fallback</rp><rt>ナハビルド</rt><rp>fallback）</rp></ruby>丁</p>
+</body></html>]])
+        f:close()
+        local document = DocumentRegistry:openDocument(path)
+        document._document:resetVertRubyAdvDiff()
+        readerui = ReaderUI:new{dimen = Screen:getSize(), document = document}
         UIManager:show(readerui)
+        document:setFontSize(32)
+        document:setVisiblePageCount(1)
+        readerui.rolling:onUpdatePos()
         fastforward_ui_events()
-        doc = readerui.document
+        assert.is_true(document:isVerticalText())
     end)
 
     after_each(function()
-        if readerui then readerui:onClose() end
+        if readerui then readerui:onClose(); readerui = nil end
         UIManager:quit()
+        if path then os.remove(path) end
     end)
 
-    it("advance of Latin ruby groups is narrower than render_w (getCharWidth path active) #latin_advance", function()
-        if not epub_path then pending("sanshiro.epub not found"); return end
-
-        -- Navigate pages to trigger measureText (layout) for each paragraph.
-        -- sanshiro.epub contains Nachbild《ナハビルド》 and Geschehen《ゲシェーヘン》;
-        -- those ruby groups have Latin base text whose horizontal advance is well
-        -- below char_count × font_size.
-        -- The process is fresh so the counter starts at 0 — no explicit reset needed.
-        local pages_to_visit = math.min(doc:getPageCount(), 20)
-
-        for pg = 1, pages_to_visit do
-            readerui.rolling:onGotoPage(pg)
-            fastforward_ui_events()
-        end
-
-        local total_px, max_px = doc._document:getVertRubyAdvDiff()
-
-        print(string.format(
-            "[latin_ruby_advance] pages=%d  adv_diff_total=%d px  adv_diff_max=%d px",
-            pages_to_visit, total_px, max_px))
-
-        -- With the fix: advance = max(horiz_advance, annot_depth) < render_w for
-        -- Latin base text, so total_px > 0.
-        -- Without the fix: advance ≈ render_w (fmt.getWidth() is TTB-based),
-        -- so total_px ≈ 0.
-        assert.is_true(total_px > 0,
-            string.format(
-                "render_w − advance diff is %d px (expected > 0). "
-                .. "Latin ruby groups should use getCharWidth-based horizontal "
-                .. "advance, not TTB-based fmt.getWidth().  If this is 0 the fix "
-                .. "in measureText() (base_horiz_advance_pre path) is not active.",
-                total_px))
-    end)
-
-    it("rp fallback text is ignored when measuring annotation depth #latin_rp_advance", function()
-        local rp_epub = "spec/front/unit/data/fixtures/vertical_text/ruby_rp_latin.epub"
-        if not lfs.attributes(rp_epub) then
-            pending("ruby_rp_latin.epub not found")
-            return
-        end
-
-        local before_total = doc and doc._document and doc._document:getVertRubyAdvDiff() or 0
-        if readerui then readerui:onClose() end
-        readerui = ReaderUI:new{
-            dimen = Screen:getSize(),
-            document = DocumentRegistry:openDocument(rp_epub),
-        }
-        UIManager:show(readerui)
+    local function depth_before_marker(index, marker)
+        local doc = readerui.document
+        -- Compare the CJK glyphs surrounding the Latin run. A ruby base's
+        -- own xpointer is offset sideways by its annotation box.
+        local hits = doc:findAllText("甲", false, 0, 10, false)
+        assert.truthy(hits and hits[index], "preceding character missing")
+        local markers = doc:findAllText(marker, false, 0, 10, false)
+        assert.truthy(markers and markers[1], "following character missing")
+        local page = doc:getPageFromXPointer(hits[index].start)
+        assert.equals(page, doc:getPageFromXPointer(markers[1].start), "sample must fit on one page")
+        readerui.rolling:onGotoPage(page)
         fastforward_ui_events()
-        doc = readerui.document
+        local y, x = doc:getScreenPositionFromXPointer(hits[index].start)
+        local next_y, next_x = doc:getScreenPositionFromXPointer(markers[1].start)
+        assert.is_true(math.abs(x - next_x) <= 2,
+            string.format("sample %d must fit in one column: (%d,%d) -> (%d,%d)", index, x, y, next_x, next_y))
+        assert.is_true(next_y > y, "following character must advance down the column")
+        return next_y - y
+    end
 
-        local pages_to_visit = math.min(doc:getPageCount(), 5)
-        for pg = 1, pages_to_visit do
-            readerui.rolling:onGotoPage(pg)
-            fastforward_ui_events()
-        end
+    it("leaves no oversized gap after a Latin ruby base #latin_advance", function()
+        local plain = depth_before_marker(1, "乙")
+        local ruby = depth_before_marker(2, "丙")
+        -- Plain Latin can receive CJK/Latin auto-spacing on either side;
+        -- a ruby box need not have that spacing. Allow up to one body em of
+        -- reduction, but reject a collapsed advance or an oversized gap.
+        local spacing_allowance = readerui.document:getFontSize()
+        assert.is_true(ruby >= plain - spacing_allowance and ruby <= plain + 2,
+            string.format("Latin ruby reserves %dpx before next character; plain text reserves %dpx", ruby, plain))
+        local total_px = readerui.document._document:getVertRubyAdvDiff()
+        assert.is_true(total_px > 0, "fixture must exercise reduced Latin ruby advance")
+    end)
 
-        local total_px, max_px = doc._document:getVertRubyAdvDiff()
-        local delta_px = total_px - before_total
-
-        print(string.format(
-            "[latin_rp_advance] pages=%d  adv_diff_delta=%d px  adv_diff_total=%d px  adv_diff_max=%d px",
-            pages_to_visit, delta_px, total_px, max_px))
-
-        assert.is_true(delta_px > 0,
-            string.format(
-                "render_w - advance diff delta is %d px (expected > 0). "
-                .. "The <rp> fallback parentheses were likely counted as visible "
-                .. "ruby annotation text, making annot_depth dominate the ruby "
-                .. "inline-box advance.  Ignore el_rp when measuring vertical "
-                .. "ruby annotation depth.",
-                delta_px))
+    it("ignores rp fallback when positioning the next character #latin_rp_advance", function()
+        local ruby = depth_before_marker(2, "丙")
+        local fallback = depth_before_marker(3, "丁")
+        assert.is_true(math.abs(fallback - ruby) <= 2,
+            string.format("hidden rp text changed inline depth from %dpx to %dpx", ruby, fallback))
     end)
 end)

@@ -67,11 +67,8 @@ describe("Vertical text: highlight box column alignment", function()
     end)
 
     it("displayed highlight x-center matches getWordFromPosition sbox #highlight_align", function()
-        if not epub_path then pending("sanshiro.epub not found"); return end
-        if not (doc.isVerticalText and doc:isVerticalText()) then
-            pending("document is not vertical-rl")
-            return
-        end
+        assert.truthy(epub_path, "sanshiro.epub fixture missing")
+        assert.is_true(doc:isVerticalText(), "fixture must render as vertical-rl")
 
         local sw, sh = Screen:getWidth(), Screen:getHeight()
         readerui.rolling:onGotoPage(3)
@@ -92,7 +89,7 @@ describe("Vertical text: highlight box column alignment", function()
                 break
             end
         end
-        if not raw_sbox then pending("no word found on page 3"); return end
+        assert.truthy(raw_sbox, "no word found on page 3")
 
         local raw_cx = raw_sbox.x + math.floor(raw_sbox.w / 2)
 
@@ -115,10 +112,7 @@ describe("Vertical text: highlight box column alignment", function()
                 end
             end
         end
-        if not displayed_sboxes then
-            pending("onHold did not populate highlight.temp — no text found at tap position")
-            return
-        end
+        assert.truthy(displayed_sboxes, "onHold did not populate highlight.temp")
 
         local dsb = displayed_sboxes[1]
         local displayed_cx = dsb.x + math.floor(dsb.w / 2)

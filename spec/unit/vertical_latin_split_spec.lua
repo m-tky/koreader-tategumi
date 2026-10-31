@@ -21,8 +21,8 @@ describe("Vertical text: Latin word no-split #latin_split", function()
     end)
 
     for _, case in ipairs({
-        {name = "roomy", font_size = 20, margin = 20},
-        {name = "short", font_size = 28, margin = 100},
+        {name = "roomy", font_size = 20, margin = 20}, -- unscaled_size_check: ignore (fixed CSS-pixel test input)
+        {name = "short", font_size = 28, margin = 100}, -- unscaled_size_check: ignore (fixed CSS-pixel test input)
     }) do
         it("keeps complete Latin words in a " .. case.name .. " column", function()
             local f = assert(io.open(epub_path, "rb"), "latin_split_test.epub fixture missing")

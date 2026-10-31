@@ -4,7 +4,7 @@ Vertical text spec: coordinate conversion and selection in vertical-rl mode.
 Tests:
   1. getWordFromPosition: word found, sbox positive, sbox covers tap
   2. getTextFromPositions: all sboxes positive width, span multiple columns
-  3. Wide selection spanning page-splitter boundary: positive sboxes
+  3. Single-column selection: rectangles cover both endpoint characters
   4. Horizontal-mode regression: unchanged behavior
 
 Run via:
@@ -339,80 +339,32 @@ describe("Vertical text", function()
             end
         end)
 
-        it("multi-column selection returns all positive-width sboxes", function()
+        it("wide selection returns positive rectangles covering both endpoint columns", function()
             local h = Screen:getHeight()
             local y = math.floor(h * 0.3)
             local xs = find_content_columns(doc, y, 2)
-            if not xs then
-                pending("Not enough content columns")
-                return
-            end
-            local right_x, left_x = xs[1], xs[math.min(3, #xs)]
-            local ok, result = pcall(function()
-                return doc:getTextFromPositions({x=right_x, y=y}, {x=left_x, y=y})
-            end)
-            assert.truthy(ok, "getTextFromPositions error")
-            local sboxes = result and result.sboxes or {}
-            assert.truthy(#sboxes > 0, "No sboxes for multi-column selection")
-            local neg = 0
-            for _, sb in ipairs(sboxes) do
-                if sb.w <= 0 then neg = neg + 1 end
-            end
-            assert.equals(0, neg,
-                string.format("%d/%d sboxes have non-positive width", neg, #sboxes))
-        end)
-
-        it("wide selection sboxes should span multiple columns", function()
-            local h = Screen:getHeight()
-            local y = math.floor(h * 0.3)
-            local xs = find_content_columns(doc, y, 2)
-            if not xs then
-                pending("Not enough content columns")
-                return
-            end
-            -- Use at least 2 columns apart.
-            local right_x = xs[1]
-            local left_x  = xs[math.min(#xs, math.max(2, math.floor(#xs * 0.6)))]
+            assert.truthy(xs, "fixture must provide multiple content columns")
+            local right_x, left_x = xs[1], xs[#xs]
+            local first = assert(doc:getWordFromPosition({x=right_x, y=y}))
+            local last = assert(doc:getWordFromPosition({x=left_x, y=y}))
+            assert.is_true(first.sbox.x > last.sbox.x, "endpoints must be in different columns")
             local ok, result = pcall(function()
                 return doc:getTextFromPositions({x=right_x, y=y}, {x=left_x, y=y})
             end)
             assert.truthy(ok and result, "No selection result")
             local sboxes = result.sboxes or {}
-            if #sboxes == 0 then return end  -- no content → skip
+            assert.is_true(#sboxes > 0, "No sboxes for multi-column selection")
             local min_x, max_x = math.huge, -math.huge
             for _, sb in ipairs(sboxes) do
-                if sb.x < min_x then min_x = sb.x end
-                if sb.x + sb.w > max_x then max_x = sb.x + sb.w end
+                assert.is_true(sb.w > 0 and sb.h > 0, "selection rectangle must have positive dimensions")
+                min_x = math.min(min_x, sb.x)
+                max_x = math.max(max_x, sb.x + sb.w)
             end
-            assert.truthy(max_x - min_x >= 30,
-                string.format("sboxes span only %dpx — expected ≥30px for 2+ columns", max_x - min_x))
-        end)
-
-        it("wide selection sboxes should all have positive width (cross page-splitter boundary)", function()
-            -- Scan the widest possible content range.
-            local h = Screen:getHeight()
-            local y = math.floor(h * 0.4)
-            local xs = find_content_columns(doc, y, 2)
-            if not xs then
-                pending("Not enough content columns")
-                return
-            end
-            local right_x = xs[1]
-            local left_x  = xs[#xs]   -- widest available range
-            local ok, result = pcall(function()
-                return doc:getTextFromPositions({x=right_x, y=y}, {x=left_x, y=y})
-            end)
-            assert.truthy(ok, "getTextFromPositions error: " .. tostring(result))
-            local sboxes = result and result.sboxes or {}
-            assert.truthy(#sboxes > 0,
-                string.format("No sboxes for wide selection x=[%d..%d]", left_x, right_x))
-            -- Core check: all sboxes must have positive width.
-            local neg = 0
-            for _, sb in ipairs(sboxes) do
-                if sb.w <= 0 then neg = neg + 1 end
-            end
-            assert.equals(0, neg,
-                string.format("%d/%d sboxes have non-positive width in wide selection", neg, #sboxes))
+            assert.is_true(min_x <= last.sbox.x + 2, "selection misses the left endpoint column")
+            assert.is_true(max_x >= first.sbox.x + first.sbox.w - 2,
+                "selection misses the right endpoint column")
+            assert.truthy(result.text and result.text:find(first.word, 1, true), "selection misses first word")
+            assert.truthy(result.text:find(last.word, 1, true), "selection misses last word")
         end)
 
         it("vertical selection within one column covers significant height", function()
@@ -425,10 +377,7 @@ describe("Vertical text", function()
             -- side margins, often less than screen height).  Selecting past
             -- the column bottom returns an empty sbox list.
             local xs_top = find_content_columns(doc, top_y, 1)
-            if not xs_top then
-                pending("No content at top of page for vertical selection test")
-                return
-            end
+            assert.truthy(xs_top, "fixture must provide content at the top of a column")
             local x = xs_top[1]
             -- Probe downward (every 25px) to find the actual content bottom in this column
             local bot_y = top_y
@@ -439,11 +388,8 @@ describe("Vertical text", function()
                     bot_y = ty
                 end
             end
-            if bot_y - top_y < math.floor(h * 0.20) then
-                pending(string.format("Column at x=%d only has content over %dpx (need ≥%dpx) — fixture too short",
-                    x, bot_y - top_y, math.floor(h * 0.20)))
-                return
-            end
+            assert.is_true(bot_y - top_y >= math.floor(h * 0.20),
+                "fixture must provide a column with a substantial selectable height")
             local ok, result = pcall(function()
                 return doc:getTextFromPositions({x=x, y=top_y}, {x=x, y=bot_y})
             end)
@@ -454,17 +400,20 @@ describe("Vertical text", function()
                 assert.truthy(sb.w > 0,
                     string.format("vertical sbox[%d].w=%d not positive", i, sb.w))
             end
-            local total_h = 0
-            for _, sb in ipairs(sboxes) do total_h = total_h + sb.h end
-            -- Selection should return at least one sbox (covered by the
-            -- assertion above).  The exact total height depends on how the
-            -- selection mechanism walks the inline content within the column;
-            -- in vertical mode it currently returns one sbox per text run,
-            -- so a partial coverage of the probed range is expected.  Just
-            -- require any positive total — the per-sbox positive-width check
-            -- above is the main correctness gate.
-            assert.truthy(total_h > 0,
-                string.format("Vertical selection has zero total height (%d sboxes)", #sboxes))
+            local first = assert(doc:getWordFromPosition({x=x, y=top_y}))
+            local last = assert(doc:getWordFromPosition({x=x, y=bot_y}))
+            assert.equals(first.sbox.x, last.sbox.x, "endpoints must remain in one column")
+            local min_y, max_y = math.huge, -math.huge
+            for _, sb in ipairs(sboxes) do
+                assert.is_true(sb.h > 0, "selection rectangle must have positive height")
+                assert.is_true(math.abs(sb.x - first.sbox.x) <= 2, "selection escaped its column")
+                min_y = math.min(min_y, sb.y)
+                max_y = math.max(max_y, sb.y + sb.h)
+            end
+            assert.is_true(min_y <= first.sbox.y + 2, "selection misses its first character")
+            assert.is_true(max_y >= last.sbox.y + last.sbox.h - 2, "selection misses its last character")
+            assert.truthy(result.text and result.text:find(first.word, 1, true), "selection misses first word")
+            assert.truthy(result.text:find(last.word, 1, true), "selection misses last word")
         end)
 
         it("diagonal drag selection (top-right to bottom-left) returns multi-column sboxes", function()

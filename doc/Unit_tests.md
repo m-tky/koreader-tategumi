@@ -88,3 +88,46 @@ For CI or headless environments, set the SDL video driver to dummy:
 ```bash
 SDL_VIDEODRIVER=dummy ./kodev test
 ```
+
+## Focused vertical regressions
+
+After rebuilding the native renderer for any C++ changes, run the cascade and
+navigation regressions against that build (the `-b` flag skips rebuilding):
+
+```sh
+SDL_VIDEODRIVER=dummy ./kodev test -b front vertical_logical_cascade reader_vertical_navigation
+```
+
+The cascade spec checks observable character-box geometry with shared baselines:
+writing-mode order/inheritance, inline styles, physical/logical precedence and
+importance, targeted margin/border sides, horizontal mode changes, and generated
+content. The navigation spec keeps distinct reopen tests for explicit LTR and an
+explicit RTL choice matching the automatic direction, as well as mixed-page
+selection and initial-page restoration checks.
+
+## Standalone native render helpers
+
+Run the isolated CRengine buffer, CSS cascade, and table-edge regressions without building
+KOReader or downloading dependencies. With only the parent repository checked
+out, initialize these two gitlinks (do not initialize all submodules recursively):
+
+```sh
+git submodule update --init --depth 1 base
+git -C base submodule update --init --depth 1 thirdparty/kpvcrlib/crengine
+CXX=g++ base/thirdparty/kpvcrlib/crengine/tests/run-fork-render-helpers.sh
+```
+
+Use a Linux host C++17 compiler with AddressSanitizer and UndefinedBehaviorSanitizer
+support, or run the last command inside `nix develop`. The script compiles in a
+temporary directory and removes it on exit. The **Native render helpers** GitHub
+Actions workflow runs this command automatically for changes to the `base`
+gitlink or the workflow itself; it does not fetch unrelated recursive dependencies
+or build the reader. Only the standalone helper test is sanitizer-instrumented,
+not the full engine or frontend rendering tests.
+
+Coverage includes rotation-buffer row preservation, zero-filled growth and
+no-growth reuse; transient CSS cascade flags across axis changes and replay;
+table adjacency with spans; overlapping intervals requiring prefix maxima; and
+original-order border ties. These are correctness tests, not an actual rendering
+performance benchmark or a measured speedup claim. They do not replace the
+frontend rendering tests above.

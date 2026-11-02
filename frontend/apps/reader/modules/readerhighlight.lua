@@ -974,6 +974,7 @@ function ReaderHighlight:clear(clear_id)
         self.restore_page_mode_func()
         self.restore_page_mode_func = nil
     end
+    self.holdpan_vertical_page_jump = nil
     self.is_word_selection = false
     self.selected_text_start_xpointer = nil
     self.selected_text_start_word_end_xpointer = nil
@@ -1930,7 +1931,9 @@ function ReaderHighlight:onHoldPan(_, ges)
             end
             self.was_in_some_corner = true
             if self.ui.document:getVisiblePageCount() == 1 then -- single page mode
-                if is_vertical then
+                if is_vertical or self.holdpan_vertical_page_jump then
+                    -- Keep discrete jumps through mixed-mode pages too, so a
+                    -- later scroll-mode switch cannot replace the initial restore.
                     -- Vertical-rl: SCROLL view mode is not properly rendered
                     -- in crengine (DrawDocument in DVM_SCROLL stacks erm_final
                     -- blocks vertically as if horizontal text, so columns end
@@ -1945,10 +1948,13 @@ function ReaderHighlight:onHoldPan(_, ges)
                     -- xpointer is off-screen after the jump but stays as the
                     -- selection anchor).
                     local cur_page = self.ui.document:getCurrentPage(true)
-                    local restore_page_mode_xpointer = self.ui.document:getXPointer()
-                    self.restore_page_mode_func = function()
-                        self.ui.rolling:onGotoXPointer(restore_page_mode_xpointer, self.selected_text_start_xpointer)
+                    if not self.restore_page_mode_func then
+                        local restore_page_mode_xpointer = self.ui.document:getXPointer()
+                        self.restore_page_mode_func = function()
+                            self.ui.rolling:onGotoXPointer(restore_page_mode_xpointer, self.selected_text_start_xpointer)
+                        end
                     end
+                    self.holdpan_vertical_page_jump = true
                     if is_in_next_page_corner then
                         self.ui.rolling:_gotoPage(cur_page + 1, true, true)
                     else
@@ -2027,8 +2033,9 @@ function ReaderHighlight:onHoldPan(_, ges)
     local old_text = old_selection and old_selection.text
     -- For vertical-rl rolling documents, native crengine selection draws
     -- per-word boxes (scattered) rather than column-spanning boxes.
-    -- Use Lua-side drawing via view.highlight.temp for cleaner appearance.
-    local use_lua_highlight = is_vertical and self.ui.rolling
+    -- Keep Lua drawing across mixed-mode page jumps so the reanchored range
+    -- replaces both the stale Lua boxes and the native current-page selection.
+    local use_lua_highlight = (is_vertical or self.holdpan_vertical_page_jump) and self.ui.rolling
     self.selected_text = self.ui.document:getTextFromPositions(self.hold_pos, self.holdpan_pos,
         use_lua_highlight)
     self.is_word_selection = false
@@ -2060,7 +2067,7 @@ function ReaderHighlight:onHoldPan(_, ges)
     -- two results, so its pos1 may belong to the stale hold_pos rather than to
     -- the current finger position.  Using that ordered pos1 made it impossible
     -- to shorten the selection beyond that stale position on the new page.
-    if is_vertical and self.ui.rolling and self.restore_page_mode_func
+    if self.holdpan_vertical_page_jump and self.ui.rolling
             and self.selected_text_start_xpointer then
         local sx = self.selected_text_start_xpointer
         local finger_word = self.ui.document:getWordFromPosition(self.holdpan_pos, true)

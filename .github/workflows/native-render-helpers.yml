@@ -1,0 +1,34 @@
+name: Native render helpers
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'base'
+      - '.github/workflows/native-render-helpers.yml'
+  pull_request:
+    paths:
+      - 'base'
+      - '.github/workflows/native-render-helpers.yml'
+  workflow_dispatch:
+
+jobs:
+  native-render-helpers:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+          show-progress: false
+      - name: Checkout only native helper sources
+        run: |
+          git submodule update --init --depth 1 base
+          git -C base submodule update --init --depth 1 thirdparty/kpvcrlib/crengine
+      - name: Run standalone helper regressions with ASan and UBSan
+        env:
+          CXX: g++
+        run: base/thirdparty/kpvcrlib/crengine/tests/run-fork-render-helpers.sh

@@ -351,16 +351,15 @@ end
 function ReaderRolling:onReaderReady()
     -- Auto-detect vertical-rl writing mode.  For vertical-rl documents the
     -- correct page-turn direction is right-to-left (first page on the right,
-    -- subsequent pages to the left), so inverse_reading_order must be true.
-    -- Also enforce page mode: scroll mode breaks vertical-rl column layout.
-    -- Always enforce these on open regardless of any previously saved value.
+    -- subsequent pages to the left), unless the user chose otherwise.
+    -- Always enforce page mode: scroll mode breaks vertical-rl column layout.
     if self.ui.document:hasVerticalContent() then
-        self.view.inverse_reading_order = not BD.mirroredUILayout()
-        -- Mark this as a forced value (not a user choice), so ReaderView's
-        -- onSaveSettings does not persist it: if the book later renders
-        -- horizontal (style tweak removed / Embedded Styles off), a persisted
-        -- RTL page-turn would stick with no reset path.
-        self.view.inverse_reading_order_forced = true
+        if not self.ui.doc_settings:isTrue("page_direction_user_override") then
+            self.view.inverse_reading_order = not BD.mirroredUILayout()
+            -- Do not persist an automatic vertical-rl default: it should not
+            -- stick if the book later renders horizontally (e.g. CSS disabled).
+            self.view.inverse_reading_order_forced = true
+        end
         if self.view.view_mode ~= "page" then
             self.ui:handleEvent(Event:new("SetViewMode", "page"))
         end

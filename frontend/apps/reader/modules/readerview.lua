@@ -1047,14 +1047,16 @@ function ReaderView:shouldInvertBiDiLayoutMirroring()
     return self.invert_ui_layout
 end
 
--- Whether document navigation UI should put page 1 on the right. This combines
--- the manual layout setting with the document's reading order and vertical-rl
--- layout, so the footer, skim dialog, thumbnail grid, and book map agree.
+-- Inversion relative to UI mirroring, as expected by the footer, skim dialog,
+-- thumbnail grid, and book map. The manual layout setting reverses the result.
 function ReaderView:shouldInvertPageProgression()
-    local is_rtl = self.inverse_reading_order ~= BD.mirroredUILayout()
+    local invert = not not self.inverse_reading_order
     local is_vertical = self.document and self.document.hasVerticalContent
                         and self.document:hasVerticalContent()
-    return not not (self.invert_ui_layout or is_rtl or is_vertical)
+    if is_vertical and not self.ui.doc_settings:isTrue("page_direction_user_override") then
+        invert = not BD.mirroredUILayout()
+    end
+    return invert ~= not not self.invert_ui_layout
 end
 
 function ReaderView:syncProgressBarDirection()
@@ -1422,14 +1424,13 @@ function ReaderView:onToggleReadingOrder(toggle)
     -- document), this marker records an actual per-document user decision.
     -- Automatic metadata detection must never overwrite that decision.
     self.ui.doc_settings:makeTrue("page_direction_user_override")
+    -- Persist explicit choices even when they match the automatic direction.
+    self.inverse_reading_order_forced = false
     if toggle == nil then
         toggle = not self.inverse_reading_order
     end
     if self.inverse_reading_order ~= toggle then
         self.inverse_reading_order = toggle
-        -- User made an explicit choice: it is no longer a vertical-rl forced value,
-        -- so persist it from now on (see ReaderView:onSaveSettings).
-        self.inverse_reading_order_forced = false
         self:refreshPageTurnInput()
         local is_rtl = self.inverse_reading_order ~= BD.mirroredUILayout() -- mirrored reading
         Notification:notify(is_rtl and _("RTL page turning.") or _("LTR page turning."))
@@ -1489,12 +1490,10 @@ function ReaderView:getTapZones()
         forward_zone.ratio_x = 1 - forward_zone.ratio_x - forward_zone.ratio_w
         backward_zone.ratio_x = 1 - backward_zone.ratio_x - backward_zone.ratio_w
     end
-    -- Vertical-rl always reads right-to-left across columns (next-page direction
-    -- is LEFT), so the tap zones must end up mirrored regardless of whether
-    -- auto-direction managed to set inverse_reading_order (it only fires when
-    -- the EPUB declares PPD=RTL, which not all vertical-rl EPUBs do).  If the
-    -- upstream block above did NOT already mirror, do it now.
+    -- Default vertical-rl to RTL even without EPUB progression metadata,
+    -- but preserve an explicit user choice of LTR page turning.
     if self.ui.rolling and self.document.hasVerticalContent and self.document:hasVerticalContent()
+            and not self.ui.doc_settings:isTrue("page_direction_user_override")
             and self.inverse_reading_order == BD.mirroredUILayout() then
         forward_zone.ratio_x = 1 - forward_zone.ratio_x - forward_zone.ratio_w
         backward_zone.ratio_x = 1 - backward_zone.ratio_x - backward_zone.ratio_w

@@ -17,7 +17,8 @@ added, moved, or retired.
 4. Do not combine an upstream merge and a tategumi behavior change in one
    commit. Merge first; make the fork change in a separate commit.
 5. Each fork-only behavior needs a regression test under `spec/unit/vertical_*`
-   or a documented manual fixture when rendering assertions are impractical.
+   or an isolated CRengine test under `tests/`; use a documented manual fixture
+   when automated assertions are impractical.
 
 ## CRengine boundary
 
@@ -26,6 +27,10 @@ added, moved, or retired.
 | Page direction, drawing, and coordinate conversion | `crengine/src/lvdocview_vert.cpp` | Vertical-rl has swapped physical axes and right-to-left column progression. It is a standalone translation unit; upstream `lvdocview.cpp` retains only the necessary dispatches. | `vertical_horizontal_rtl_spec.lua`, selection and coordinate specs |
 | Font metrics, glyph placement, and vertical decorations | `crengine/src/lvfntman_vert.cpp` | Japanese vertical metrics and fallback positioning are not part of upstream's horizontal renderer. The painter for vertical text decorations also lives here; the shared font manager retains only its run-level calls. | vertical glyph, ruby, TCY, and decoration specs |
 | Text formatting and line construction | `crengine/src/lvtextfm_vert.cpp` | Column building, ruby, punctuation, and tate-chu-yoko require a vertical formatting path. It is deliberately included into `lvtextfm.cpp`: its helpers depend on the private `LVFormatter` implementation and must not be made public merely to create a separate translation unit. | `vertical_*` layout specs |
+| Final-cascade logical CSS sides | `crengine/include/lvlogical_cascade.h`, a private `setNodeStyle` helper in `lvrend.cpp`, and logical-side dispatch in `lvstsheet.cpp` | Replay the cascade only when logical declarations' applied axes disagree with the final cascaded writing mode; preserve physical/logical order and importance without changing common stylesheet APIs. | `vertical_logical_cascade_spec.lua` (rendered geometry, including horizontal and generated-content cases), `tests/fork_render_helpers_test.cpp` (transient flags) |
+| Collapsed-table border lookup | `crengine/include/lvrend_table_edges.h`, called from `lvrend.cpp` | Index boundary intervals rather than scan every cell pair; prefix maxima handle overlapping spans and insertion order preserves border ties. | `tests/fork_render_helpers_test.cpp`, vertical table specs |
+| Rotated-run buffer growth | `crengine/include/lvfntman_vert_buffer.h`, called from `lvfntman.cpp` | Preserve rows while allowing a rotated run's advance to exceed its measured allocation; retain the existing shaping/drawing loop. | `tests/fork_render_helpers_test.cpp`, vertical rotation specs |
+| Ordinary vertical glyph origin (experimental) | `LVFontVertBodyMetricsCache` in `lvfntman_vert.cpp`, called from `lvfntman.cpp` | Preserve the unhinted vertical origin and subtract the raster bitmap bearing, rather than using hinted vertical bearings as bitmap positions. Punctuation and missing-vertical-metrics fallback are unchanged. | TBMincho runtime capsule trace at 22/32/40px; existing vertical layout specs (not a dedicated origin regression) |
 | Rendering diagnostics | `crengine/src/lvrend_vert_diag.cpp` | Debug-only instrumentation for tategumi rendering. | manual diagnostic use |
 
 Small integration points in upstream-owned files should only dispatch to these
@@ -41,6 +46,27 @@ The physical separation status is intentional:
   `lvfntman.cpp`: they share fallback and glyph-buffer state with horizontal
   shaping, so a superficial extraction increases both call overhead and merge
   risk.
+
+## Focused regression checks
+
+`vertical_logical_cascade_spec.lua` shares baseline renders and exercises a full
+padding cascade matrix, with targeted margin/border, horizontal-order, and
+pseudo-element cases. Assertions use character-box geometry rather than native
+implementation details. `reader_vertical_navigation_spec.lua` separately covers
+reopening explicit LTR and same-value RTL choices, progression/tap-zone direction,
+and mixed-page selection with restoration of the initial anchor.
+
+The **Native render helpers** workflow automatically runs the standalone native
+regressions when the top-level `base` gitlink or the workflow changes. It checks
+out only `base` and its CRengine submodule and compiles only the helper test with
+AddressSanitizer and UndefinedBehaviorSanitizer on Linux; neither the full engine
+nor the reader is built or sanitizer-instrumented by this job. See
+[Unit tests](Unit_tests.md#standalone-native-render-helpers) for the local command.
+The native tests cover buffer contents and growth, transient CSS cascade flags,
+table adjacency, overlapping spans (prefix maxima), and original-order border
+ties. These are correctness tests, not a rendering performance benchmark; no
+wall-clock speedup is claimed. Measure real rendering separately before making
+performance claims.
 
 ## Review at each upstream sync
 

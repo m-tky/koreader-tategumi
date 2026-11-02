@@ -150,8 +150,10 @@ describe("Vertical reader navigation regressions", function()
         function doc:getTextFromXPointers(a, b) return a .. ":" .. b end
         function doc:getScreenBoxesFromPositions() return { { x = 100, y = 100, w = 20, h = 20 } } end
         function doc:clearSelection() end
+        -- Fixed mock-screen pixels, independent of device density.
+        local screen_w, screen_h = 600, 800
         local highlight = setmetatable({
-            screen_w = 600, screen_h = 800,
+            screen_w = screen_w, screen_h = screen_h,
             hold_pos = { x = 400, y = 200, page = page },
             selected_text_start_xpointer = anchor,
             selected_text_start_word_end_xpointer = anchor + 1,
@@ -159,7 +161,7 @@ describe("Vertical reader navigation regressions", function()
             allow_corner_scroll = true,
             view = {
                 highlight = { temp = {} }, view_mode = "page",
-                getScreenPageArea = function() return Geom:new{ w = 600, h = 800 } end,
+                getScreenPageArea = function() return Geom:new{ w = screen_w, h = screen_h } end,
                 screenToPageTransform = function(_, pos) return pos end,
             },
             ui = {

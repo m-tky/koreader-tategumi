@@ -40,6 +40,20 @@ local function getLineTextDirection(line)
     end
 end
 
+-- getPageText splits CJK text into one word per character and drops the
+-- spaces itself, so joining words with a space would turn "倉庫" into
+-- "倉 庫" and make lookups fail. Only separate two non-CJK words.
+local function joinWords(words)
+    local parts = {}
+    for i, word in ipairs(words) do
+        if i > 1 and not util.hasCJKChar(words[i - 1]) and not util.hasCJKChar(word) then
+            table.insert(parts, " ")
+        end
+        table.insert(parts, word)
+    end
+    return table.concat(parts)
+end
+
 local function getWordIndices(lines, pos)
     local last_checked_line_index = nil
     for line_index, line in ipairs(lines) do
@@ -153,7 +167,7 @@ local function getSelectedText(lines, start_pos, end_pos)
     end
 
     if found_start then
-        return table.concat(words, " "), rects
+        return joinWords(words), rects
     else
         return nil, nil
     end

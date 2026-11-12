@@ -520,7 +520,7 @@ function HtmlBoxWidget:updateHighlight()
         -- getPageText is slow so we only call it when needed, and keep the result.
         if self.page_boxes == nil then
             local page = self.document:openPage(self.page_number)
-            self.page_boxes = page:getPageText()
+            self.page_boxes = page:getPageText(true)
 
             -- In same cases MuPDF returns a visually single line of text as multiple lines.
             -- Merge such lines to ensure that getSelectedText works properly.

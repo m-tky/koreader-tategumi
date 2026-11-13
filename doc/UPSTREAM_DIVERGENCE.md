@@ -36,6 +36,25 @@ added, moved, or retired.
 Small integration points in upstream-owned files should only dispatch to these
 owners; avoid duplicating vertical algorithms there.
 
+### Mixed writing-mode page boundaries
+
+`RN_SPLIT_MODE_CHANGE` in `lvpagesplitter.h` marks forced writing-mode
+boundaries emitted by `lvrend.cpp`. Only these forced breaks override an
+adjacent image's `AVOID` flag in `lvpagesplitter.cpp`; ordinary same-mode
+image-only spine items can still share pages with text. Pending boundaries
+also apply to leading explicit-height blocks, not just text and image lines.
+
+Forced breaks discard negative collapsed margins as well as positive ones,
+so the next fragment does not start before the previous page ends. This
+margin correction also applies to horizontal documents; explicit-height fill
+calculations exclude margins that the forced break discards. Coverage is in
+`vertical_mixed_mode_page_boundary_spec.lua`; same-mode image sharing is
+covered by `vertical_cover_page_spec.lua`.
+
+Layout changes invalidate existing document caches through the existing
+`CACHE_FILE_FORMAT_VERSION` in `lvtinydom.cpp` (`3.05.84k-vwm6` for this fix),
+without changing the cache header or introducing a second revision mechanism.
+
 The physical separation status is intentional:
 
 - `lvdocview_vert.cpp` and `lvfntman_vert.cpp` are standalone sources and must

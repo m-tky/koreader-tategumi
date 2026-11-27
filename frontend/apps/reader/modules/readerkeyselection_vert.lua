@@ -34,13 +34,20 @@ local function wordAt(doc, xp)
 end
 
 local function adjacentPointer(doc, word, direction)
-    local xp
-    if direction > 0 then
-        xp = doc:getNextVisibleWordStart(word.pos0)
-    else
-        xp = doc:getPrevVisibleWordStart(word.pos0)
+    local step = direction > 0 and doc.getNextVisibleWordStart or doc.getPrevVisibleWordStart
+    local xp = word.pos0
+    while true do
+        local candidate = step(doc, xp)
+        if not candidate or candidate == xp then return end
+        -- Ruby annotations can be visible in the DOM but have no selectable
+        -- box. Skip them before the column scan or inline move can stop on
+        -- them; keep the base text selectable. Older XPointers omit [1].
+        if type(candidate) ~= "string"
+                or not (candidate:find("/rt[", 1, true) or candidate:find("/rt/", 1, true)) then
+            return candidate
+        end
+        xp = candidate
     end
-    if xp ~= word.pos0 then return xp end
 end
 
 -- Walk only in the requested logical direction: finish the current column,

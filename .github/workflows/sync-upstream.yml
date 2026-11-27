@@ -36,6 +36,7 @@ jobs:
           git remote add upstream https://github.com/koreader/koreader.git
           git fetch upstream master
           git fetch origin master
+          git fetch origin "$BRANCH" || true
           git switch --create "$BRANCH" origin/master
 
       - name: Merge upstream while retaining fork-owned pins
@@ -96,7 +97,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           BRANCH: upstream-sync/master
         run: |
-          if git diff --quiet origin/master...HEAD; then
+          if git merge-base --is-ancestor HEAD origin/master; then
             echo "Already up to date with upstream."
             exit 0
           fi

@@ -65,7 +65,7 @@ describe("Vertical text key selection boundaries", function()
             w = side, h = side }
     end
 
-    local function place(reader, xp)
+    local function place(reader, xp, center_on_word)
         local doc, selector = reader.document, reader.keyselection
         local page = doc:getPageFromXPointer(xp)
         if doc:getVisiblePageCount() == 2 then
@@ -78,7 +78,14 @@ describe("Vertical text key selection boundaries", function()
         selector:clearOverlay()
         local y, x = doc:getScreenPositionFromXPointer(xp)
         assert.truthy(x and y)
-        local word = doc:getWordFromPosition({ x = x + 2, y = y + 2 }, true)
+        x, y = x + 2, y + 2
+        if center_on_word then
+            -- A vertical XPointer's screen X can be on the column's right edge.
+            local ending = assert(doc:getNextVisibleWordEnd(xp))
+            local box = assert(doc:getScreenBoxesFromPositions(xp, ending, true)[1])
+            x, y = box.x + box.w / 2, box.y + box.h / 2
+        end
+        local word = doc:getWordFromPosition({ x = x, y = y }, true)
         assert.truthy(word and word.sbox)
         local boxes = doc:getScreenBoxesFromPositions(word.pos0, word.pos1, true)
         word.segments = boxes
@@ -172,6 +179,34 @@ describe("Vertical text key selection boundaries", function()
         local after = selector._current_indicator_pos
         assert.is_true(after.y < entry.y - 2 or math.abs(after.x - entry.x) <= 2,
             "Up must not advance horizontally after entering horizontal text")
+    end)
+
+    local first_column_ruby = '<div class="vertical"><p>天地<ruby>見<rp>(</rp><rt>み</rt><rp>)</rp></ruby>' ..
+        '物語<br/>宇宙洪荒</p></div>'
+
+    it("moves up and down through ruby base text in the first column", function()
+        local reader = open(first_column_ruby)
+        local doc, selector = reader.document, reader.keyselection
+        local before = locate(doc, "地").start
+        local base = locate(doc, "見").start
+        local after = locate(doc, "物").start
+        place(reader, after)
+        for _, move in ipairs({ {-1, base}, {-1, before}, {1, base}, {1, after} }) do
+            selector:moveHighlightIndicator({ 0, move[1] })
+            assert.equals(move[2], selector._previous_indicator_word.pos0)
+        end
+    end)
+
+    it("moves right to the top of the first column past a ruby annotation", function()
+        local reader = open(first_column_ruby)
+        local doc, selector = reader.document, reader.keyselection
+        local left = locate(doc, "宇").start
+        local right = locate(doc, "天").start
+        assert.equals(left, place(reader, left, true).pos0)
+        local x = selector._current_indicator_pos.x
+        selector:moveHighlightIndicator({ 1, 0 })
+        assert.equals(right, selector._previous_indicator_word.pos0)
+        assert.is_true(selector._current_indicator_pos.x > x)
     end)
 
     it("refreshes cursor position and height after F7/F6-equivalent page keys", function()
